@@ -1,5 +1,4 @@
 ﻿using MikanXR;
-using MikanXRPlugin.MikanXR;
 using UnityEngine;
 
 namespace MikanXRPlugin

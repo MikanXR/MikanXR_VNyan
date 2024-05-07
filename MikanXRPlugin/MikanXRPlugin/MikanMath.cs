@@ -1,7 +1,7 @@
 ﻿using MikanXR;
 using UnityEngine;
 
-namespace MikanXRPlugin.MikanXR
+namespace MikanXRPlugin
 {
     public static class MikanMath
     {

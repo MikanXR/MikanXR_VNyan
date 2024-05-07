@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace MikanXRPlugin.MikanXR
+namespace MikanXRPlugin
 {
     /// The ID of a VR Device
     using MikanSpatialAnchorID = System.Int32;

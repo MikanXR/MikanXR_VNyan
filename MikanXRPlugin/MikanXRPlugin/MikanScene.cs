@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using MikanXR;
-using MikanXRPlugin.MikanXR;
 
 #if UNITY_2017_2_OR_NEWER
 using UnityEngine.XR;

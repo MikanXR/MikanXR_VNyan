@@ -2,10 +2,7 @@
 call SetMikanVars_x64.bat
 
 :: Set path variables
-set "TARGET_DIR=%~dp0\MikanXR\Bin"
-
-:: delete old script files
-del /s /q "%TARGET_DIR%\*.dll"
+set "TARGET_DIR=%~dp0"
 
 :: Copy over the client DLLs
 xcopy /y "%MIKAN_XR_PATH%\MikanCore.dll" "%TARGET_DIR%" || goto failure

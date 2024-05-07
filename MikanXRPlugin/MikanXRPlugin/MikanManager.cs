@@ -3,7 +3,6 @@ using MikanXR;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Events;
-using MikanXRPlugin.MikanXR;
 
 #if UNITY_2017_2_OR_NEWER
 using UnityEngine.XR;
