@@ -4,14 +4,32 @@ using UnityEngine;
 
 namespace MikanXRPlugin
 {
+    [ExecuteInEditMode]
     public class MikanCamera : MikanBehavior
     {
+        public static Shader rgbDepthPackShader = null;
+
         private Camera _xrCamera = null;
-        private RenderTexture _renderTexture = null;
+        private RenderTexture _colorRenderTexture = null;
+        private RenderTexture _packDepthRenderTexture = null;
         private ulong _lastRenderedFrame = 0;
         private MikanClientGraphicsApi _mikanClientGraphicsApi = MikanClientGraphicsApi.UNKNOWN;
 
-        void Start()
+		private Material _material;
+		private Material material
+		{
+			get
+			{
+				if (_material == null && rgbDepthPackShader != null)
+				{
+					_material = new Material(rgbDepthPackShader);
+					_material.hideFlags = HideFlags.HideAndDontSave;
+				}
+				return _material;
+			}
+		}
+
+		public void Start()
         {
             Log(MikanLogLevel.Info, "MikanCamera Start called");
 
@@ -21,7 +39,7 @@ namespace MikanXRPlugin
             }
         }
 
-        void OnDestroy()
+        public void OnDestroy()
         {
             Log(MikanLogLevel.Info, "MikanCamera OnDestroy called");
             DisposeRenderTarget();
@@ -44,12 +62,10 @@ namespace MikanXRPlugin
 
         public async void HandleCameraIntrinsicsChanged()
         {
-            var client = MikanManager.Instance.ClientAPI;
-
             Log(MikanLogLevel.Info, "MikanCamera HandleCameraIntrinsicsChanged called");
-            if (client.GetIsConnected())
+            if (ClientAPI.GetIsConnected())
             {
-                var response = await client.VideoSourceAPI.GetVideoSourceIntrinsics();
+                var response = await ClientAPI.VideoSourceAPI.GetVideoSourceIntrinsics();
                 if (response.resultCode == MikanResult.Success)
                 {
                     var videoSourceIntrinsics = response as MikanVideoSourceIntrinsics;
@@ -63,6 +79,9 @@ namespace MikanXRPlugin
                         _xrCamera.aspect = videoSourcePixelWidth / videoSourcePixelHeight;
                         _xrCamera.nearClipPlane = (float)monoIntrinsics.znear;
                         _xrCamera.farClipPlane = (float)monoIntrinsics.zfar;
+                        _xrCamera.depthTextureMode = DepthTextureMode.Depth;
+                        _xrCamera.clearFlags = CameraClearFlags.SolidColor;
+                        _xrCamera.backgroundColor = Color.clear;
 
                         Log(
                             MikanLogLevel.Info,
@@ -84,7 +103,7 @@ namespace MikanXRPlugin
             }
         }
 
-        public bool RecreateRenderTarget(MikanRenderTargetDescriptor RTDesc)
+		public bool RecreateRenderTarget(MikanRenderTargetDescriptor RTDesc)
         {
             bool bSuccess = true;
             int width = (int)RTDesc.width;
@@ -100,8 +119,7 @@ namespace MikanXRPlugin
 
             _mikanClientGraphicsApi = RTDesc.graphicsAPI;
 
-            int depthBufferPrecision = 32;
-            _renderTexture = new RenderTexture(width, height, depthBufferPrecision, RenderTextureFormat.ARGB32)
+            _colorRenderTexture = new RenderTexture(width, height, 32, RenderTextureFormat.ARGB32)
             {
                 antiAliasing = 1,
                 wrapMode = TextureWrapMode.Clamp,
@@ -109,15 +127,29 @@ namespace MikanXRPlugin
                 anisoLevel = 0
             };
 
-            if (!_renderTexture.Create())
+			_packDepthRenderTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32)
+			{
+				antiAliasing = 1,
+				wrapMode = TextureWrapMode.Clamp,
+				useMipMap = false,
+				anisoLevel = 0
+			};
+
+			if (!_colorRenderTexture.Create())
             {
                 Log(MikanLogLevel.Error, "  MikanCamera: Unable to create render texture.");
                 return false;
             }
 
-            if (_xrCamera != null)
-            {
-                _xrCamera.targetTexture = _renderTexture;
+			if (!_packDepthRenderTexture.Create())
+			{
+				Log(MikanLogLevel.Error, "  MikanCamera: Unable to create render texture.");
+				return false;
+			}
+
+			if (_xrCamera != null)
+			{
+                _xrCamera.targetTexture = _colorRenderTexture;
             }
             else
             {
@@ -136,11 +168,17 @@ namespace MikanXRPlugin
                 _xrCamera.targetTexture = null;
             }
 
-            if (_renderTexture != null && _renderTexture.IsCreated())
+            if (_colorRenderTexture != null && _colorRenderTexture.IsCreated())
             {
-                _renderTexture.Release();
+                _colorRenderTexture.Release();
             }
-            _renderTexture = null;
+            _colorRenderTexture = null;
+
+            if (_packDepthRenderTexture != null && _packDepthRenderTexture.IsCreated())
+            {
+				_packDepthRenderTexture.Release();
+			}
+            _packDepthRenderTexture = null;
         }
 
         public void CaptureFrame(ulong frameIndex)
@@ -150,13 +188,18 @@ namespace MikanXRPlugin
             if (_xrCamera != null)
             {
                 _xrCamera.Render();
-            }
+
+				if (material != null)
+				{
+					Graphics.Blit(_colorRenderTexture, _packDepthRenderTexture, material);
+				}
+			}
 
             if (_mikanClientGraphicsApi == MikanClientGraphicsApi.Direct3D11 ||
                 _mikanClientGraphicsApi == MikanClientGraphicsApi.OpenGL)
             {
-                IntPtr textureNativePtr = _renderTexture.GetNativeTexturePtr();
-                IntPtr depthTextureNativePtr = _renderTexture.GetNativeDepthBufferPtr();
+                IntPtr textureNativePtr = _colorRenderTexture.GetNativeTexturePtr();
+                IntPtr depthTextureNativePtr = _packDepthRenderTexture.GetNativeTexturePtr();
 
                 // Fast interprocess shared texture transfer
                 MikanClientFrameRendered frame = new MikanClientFrameRendered
@@ -165,7 +208,7 @@ namespace MikanXRPlugin
                     zNear = _xrCamera.nearClipPlane,
                     zFar = _xrCamera.farClipPlane
                 };
-                MikanManager.Instance.ClientAPI.PublishRenderTargetTextures(
+                ClientAPI.PublishRenderTargetTextures(
                     textureNativePtr, depthTextureNativePtr, ref frame);
             }
         }

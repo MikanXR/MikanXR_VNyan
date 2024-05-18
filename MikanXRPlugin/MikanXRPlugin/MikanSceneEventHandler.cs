@@ -13,7 +13,7 @@ namespace MikanXRPlugin
 			_mikanManager = MikanManager.Instance;
 			if (_mikanManager != null)
 			{
-				_mikanManager.OnMessageEvent += OnMikanMessage;
+				_mikanManager.MikanClient.OnScriptMessage.AddListener(OnMikanMessage);
 			}
 
 			_mikanScene = this.gameObject.GetComponent<MikanScene>();
@@ -29,7 +29,7 @@ namespace MikanXRPlugin
 			_mikanManager = MikanManager.Instance;
 			if (_mikanManager != null)
 			{
-				_mikanManager.OnMessageEvent -= OnMikanMessage;
+				_mikanManager.MikanClient.OnScriptMessage.AddListener(OnMikanMessage);
 			}
 		}
 

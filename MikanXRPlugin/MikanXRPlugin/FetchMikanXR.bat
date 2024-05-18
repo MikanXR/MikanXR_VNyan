@@ -2,7 +2,7 @@
 call SetMikanVars_x64.bat
 
 :: Set path variables
-set "TARGET_DIR=%~dp0"
+set "TARGET_DIR=%~dp0/MikanXR"
 
 :: Copy over the client DLLs
 xcopy /y "%MIKAN_XR_PATH%\MikanCore.dll" "%TARGET_DIR%" || goto failure
