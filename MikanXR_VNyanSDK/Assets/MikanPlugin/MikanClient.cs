@@ -60,7 +60,10 @@ namespace MikanXRPlugin
 
         MikanRenderTargetDescriptor _renderTargetDescriptor;
         public MikanRenderTargetDescriptor RenderTargetDescriptor => _renderTargetDescriptor;
-        public bool IsRenderTargetDescriptorValid => _renderTargetDescriptor.width > 0 && _renderTargetDescriptor.height > 0;
+        public bool IsRenderTargetDescriptorValid => 
+            _renderTargetDescriptor != null &&
+            _renderTargetDescriptor.width > 0 && 
+            _renderTargetDescriptor.height > 0;
 
         public bool InitClient()
         {
@@ -139,8 +142,6 @@ namespace MikanXRPlugin
 
         public void Update()
         {
-            Log(MikanLogLevel.Info, $"MikanClient: Update called");
-
             if (ClientAPI.GetIsConnected())
             {
                 while (ClientAPI.FetchNextEvent(out MikanEvent mikanEvent) == MikanResult.Success)

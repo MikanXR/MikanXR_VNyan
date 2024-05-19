@@ -2,6 +2,8 @@
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Text;
+using UnityEditor.VersionControl;
 using WebSocketSharp;
 
 namespace MikanCore
@@ -11,9 +13,23 @@ namespace MikanCore
 		private MikanLogger _logger= null;
 
 		private WebSocket _wsConnection;
-		private Dictionary<string, WebSocketSharp.Net.Cookie> _clientProperties = null;
+		private string _clientInfo;
 
-		private Queue<string> _eventQueue= null;
+		class WebsocketEvent
+		{
+			public enum EventType
+			{
+				Connect,
+				Disconnect,
+				Message,
+				Error
+			};
+			public EventType eventType;
+			public string payload;
+		}
+		private Queue<WebsocketEvent> _websocketThreadEventQueue= null;
+		private Queue<WebsocketEvent> _mainThreadEventQueue= null;
+		private Queue<string> _mainThreadMessageQueue= null;
 
 		public bool IsConnected
 		{
@@ -23,7 +39,7 @@ namespace MikanCore
 			}
 		}
 
-		public delegate void ResponseHandler(string responseString);
+		public delegate bool ResponseHandler(string responseString, out string errorMesg);
 		private ResponseHandler _responseHandler = null;
 		public void SetResponseHandler(ResponseHandler handler)
 		{
@@ -33,8 +49,10 @@ namespace MikanCore
 		public MikanMessageClient(MikanLogger logger)
 		{
 			_logger = logger;
-			_clientProperties = new Dictionary<string, WebSocketSharp.Net.Cookie>();
-			_eventQueue= new Queue<string>();
+			_clientInfo = "";
+			_websocketThreadEventQueue = new Queue<WebsocketEvent>();
+			_mainThreadEventQueue= new Queue<WebsocketEvent>();
+			_mainThreadMessageQueue= new Queue<string>();
 		}
 
 		public MikanResult Initialize()
@@ -47,18 +65,15 @@ namespace MikanCore
 			Disconnect();
 		}
 
-		public MikanResult SetClientProperty(string key, string value)
+		public MikanResult SetClientInfo(string clientInfo)
 		{
-			if (_clientProperties.ContainsKey(key))
+			if (!clientInfo.IsNullOrEmpty())
 			{
-				_clientProperties[key].Value = value;
-			}
-			else
-			{
-				_clientProperties.Add(key, new WebSocketSharp.Net.Cookie(key, value));
+				_clientInfo= clientInfo;
+				return MikanResult.Success;
 			}
 
-			return MikanResult.Success;
+			return MikanResult.GeneralError;
 		}
 
 		public MikanResult Connect(string host, string port)
@@ -71,15 +86,12 @@ namespace MikanCore
 			string url = $"{host}:{port}";
 			_wsConnection = new WebSocket(url);
 
-			foreach (var cookie in _clientProperties.Values)
-			{
-				_wsConnection.SetCookie(cookie);
-			}
+			_wsConnection.OnOpen += EnqueueWebsocketConnectEvent;
+			_wsConnection.OnMessage += EnqueueWebsocketMessageEvent;
+			_wsConnection.OnError += EnqueueWebsocketErrorEvent;
+			_wsConnection.OnClose += EnqueueWebsocketDisconnectEvent;
 
-			_wsConnection.OnOpen += OnWebsocketConnect;
-			_wsConnection.OnMessage += WebsocketMessageHandler;
-			_wsConnection.OnError += OnWebsocketError;
-			_wsConnection.OnClose += OnWebsocketDisconnect;
+			_wsConnection.ConnectAsync();
 
 			return MikanResult.Success;
 		}
@@ -103,24 +115,48 @@ namespace MikanCore
 			}
 		}
 
-		private void OnWebsocketConnect(object sender, EventArgs e)
+		private void EnqueueWebsocketConnectEvent(object sender, EventArgs e)
 		{
-			_logger.Log(MikanLogLevel.Info, "Connected to web socket server");
+			lock (_websocketThreadEventQueue)
+			{
+				_websocketThreadEventQueue.Enqueue(new WebsocketEvent()
+				{
+					eventType = WebsocketEvent.EventType.Connect,
+					payload = string.Empty
+				});
+			}
 		}
 
-		private void OnWebsocketDisconnect(object sender, CloseEventArgs d)
+		private void EnqueueWebsocketDisconnectEvent(object sender, CloseEventArgs d)
 		{
-			string reason= d?.Reason ?? "<NONE>";
-
-			_logger.Log(MikanLogLevel.Info, $"Disconnected from web socket server: {reason}");
+			lock (_websocketThreadEventQueue)
+			{
+				_websocketThreadEventQueue.Enqueue(new WebsocketEvent()
+				{
+					eventType = WebsocketEvent.EventType.Disconnect,
+					payload = d?.Reason ?? "<NONE>"
+				});
+			}
 		}
 
-		private void OnWebsocketError(object sender, ErrorEventArgs e)
+		private void EnqueueWebsocketErrorEvent(object sender, ErrorEventArgs e)
 		{
-			_logger.Log(MikanLogLevel.Info, $"Web socket Error: {e.Message}");
+			EnqueueWebsocketErrorMessage(e.Message);
 		}
 
-		private void WebsocketMessageHandler(object sender, MessageEventArgs e)
+		private void EnqueueWebsocketErrorMessage(string errorMessage)
+		{
+			lock (_websocketThreadEventQueue)
+			{
+				_websocketThreadEventQueue.Enqueue(new WebsocketEvent()
+				{
+					eventType = WebsocketEvent.EventType.Error,
+					payload = errorMessage
+				});
+			}
+		}
+
+		private void EnqueueWebsocketMessageEvent(object sender, MessageEventArgs e)
 		{
 			if (e.IsText)
 			{
@@ -130,43 +166,115 @@ namespace MikanCore
 				if (root.TryGetValue("eventType", out JToken eventTypeElement) &&
 					eventTypeElement.Type == JTokenType.String)
 				{
-					_eventQueue.Enqueue(message);
+					lock (_websocketThreadEventQueue)
+					{
+						_websocketThreadEventQueue.Enqueue(new WebsocketEvent()
+						{
+							eventType = WebsocketEvent.EventType.Message,
+							payload = message
+						});
+					}
 				}
 				else if (root.TryGetValue("responseType", out JToken responseTypeElement) &&
 						responseTypeElement.Type == JTokenType.String)
 				{
 					if (_responseHandler != null)
 					{
-						_responseHandler(message);
+						if (!_responseHandler(message, out string errorMesg))
+						{
+							EnqueueWebsocketErrorMessage(errorMesg);
+						}
 					}
 					else
 					{
-						_logger.Log(MikanLogLevel.Error, 
-							$"Received response message but no handler set: {message}");
+						EnqueueWebsocketErrorMessage($"Received response message but no handler set: {message}");
 					}
 				}
 				else
 				{
-					_logger.Log(MikanLogLevel.Error,
-						$"Received unsupported message: {message}");
+					EnqueueWebsocketErrorMessage($"Received unsupported message: {message}");
 				}
 			}
 			else
 			{
-				_logger.Log(MikanLogLevel.Info, "Received unsupported binary message");
+				EnqueueWebsocketErrorMessage("Received unsupported binary message");
 			}
 		}
 
 		public MikanResult FetchNextEvent(out string message)
 		{
-			if (_eventQueue.Count > 0)
+			// Copy events from the websocket thread to the main thread
+			lock (_websocketThreadEventQueue)
 			{
-				message = _eventQueue.Dequeue();
+				while (_websocketThreadEventQueue.Count > 0)
+				{
+					_mainThreadEventQueue.Enqueue(_websocketThreadEventQueue.Dequeue());
+				}
+			}
+
+			// Process the main thread events
+			while (_mainThreadEventQueue.Count > 0)
+			{
+				WebsocketEvent websocketEvent = _mainThreadEventQueue.Dequeue();
+
+				switch(websocketEvent.eventType)
+				{
+					case WebsocketEvent.EventType.Connect:
+						HandleConnectEvent(websocketEvent);
+						break;
+					case WebsocketEvent.EventType.Disconnect:
+						HandleDisconnectEvent(websocketEvent);
+						break;
+					case WebsocketEvent.EventType.Message:
+						HandleMessageEvent(websocketEvent);
+						break;
+					case WebsocketEvent.EventType.Error:
+						HandleErrorEvent(websocketEvent);
+						break;
+				}
+			}
+
+			// Return the next message event in the queue
+			if (_mainThreadEventQueue.Count > 0)
+			{
+				message = _mainThreadMessageQueue.Dequeue();
 				return MikanResult.Success;
 			}
 
 			message = string.Empty;
 			return MikanResult.NoData;
+		}
+
+		private void HandleConnectEvent(WebsocketEvent websocketEvent)
+		{
+			_logger.Log(MikanLogLevel.Info, "Connected to web socket server");
+
+			// Send clinetInfo payload in a connect request immediately upon connection
+			StringBuilder ss = new StringBuilder();
+			ss.AppendLine("{");
+			ss.AppendLine($" \"requestId\":-1,");
+			ss.AppendLine($" \"requestType\":\"connect\",");
+			ss.AppendLine($" \"version\":0,");
+			ss.AppendLine($" \"payload\":{_clientInfo}");
+			ss.AppendLine("}");
+
+			string requestString = ss.ToString();
+			_wsConnection.Send(requestString);
+		}
+
+		private void HandleDisconnectEvent(WebsocketEvent websocketEvent)
+		{
+			_logger.Log(MikanLogLevel.Info, $"Disconnected from web socket server: {websocketEvent.payload}");
+		}
+
+		private void HandleMessageEvent(WebsocketEvent websocketEvent)
+		{
+			_mainThreadMessageQueue.Enqueue(websocketEvent.payload);
+		}
+
+		private void HandleErrorEvent(WebsocketEvent websocketEvent)
+		{
+			_logger.Log(MikanLogLevel.Info, $"Web socket Error: {websocketEvent.payload}");
 		}
 
 		public MikanResult SendRequest(string message)

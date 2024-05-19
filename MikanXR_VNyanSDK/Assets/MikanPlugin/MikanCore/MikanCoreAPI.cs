@@ -82,9 +82,9 @@ namespace MikanCore
 			return _isInitialized;
 		}
 
-		public MikanResult SetClientProperty(string key, string value)
+		public MikanResult SetClientInfo(string clientInfo)
 		{
-			return _messageClient.SetClientProperty(key, value);
+			return _messageClient.SetClientInfo(clientInfo);
 		}
 
 		public MikanResult Connect(string host = "", string port = "")

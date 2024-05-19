@@ -157,23 +157,25 @@ namespace MikanXR
 					version);
 		}		
 
-		private void InternalResponseHandler(string responseString)
+		private bool InternalResponseHandler(string responseString, out string errorMesg)
 		{
 			var root = (JObject)JsonConvert.DeserializeObject(responseString);
+
+			errorMesg = "";
 
 			// Check if the key "responseType" exists
 			if (!root.TryGetValue("requestId", out JToken requestIdElement) || 
 				requestIdElement.Type != JTokenType.Integer)
 			{
-				_logger.Log(MikanLogLevel.Error, "Missing or malformed requestId");
-				return;
+				errorMesg = "Missing or malformed requestId";
+				return false;
 			}
 
 			if (!root.TryGetValue("responseType", out JToken responseTypeElement) || 
 				responseTypeElement.Type != JTokenType.String)
 			{
-				_logger.Log(MikanLogLevel.Error, "Missing or malformed responseType");
-				return;
+				errorMesg = "Missing or malformed responseType";
+				return false;
 			}
 
 			int requestId = (int)requestIdElement;
@@ -190,11 +192,10 @@ namespace MikanXR
 			}
 
 			// Bail if the corresponding pending request is not found
-			if (pendingRequest != null)
+			if (pendingRequest == null)
 			{
-				_logger.Log(MikanLogLevel.Error, 
-					$"Invalid pending request id({requestId}) for response type {responseType}");
-				return;
+				errorMesg = $"Invalid pending request id({requestId}) for response type {responseType}";
+				return false;
 			}
 
 			// Look up the response factory for the response type
@@ -206,7 +207,8 @@ namespace MikanXR
 			}
 			else
 			{
-				_logger.Log(MikanLogLevel.Error, "Unknown response type: " + responseType);
+				errorMesg = $"Unknown response type: {responseType}";
+				
 			}
 
 			if (response == null)
@@ -219,6 +221,7 @@ namespace MikanXR
 			}
 
 			pendingRequest.promise.SetResult(response);
+			return response != null;
 		}
 	}	
 }

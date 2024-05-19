@@ -132,7 +132,7 @@ namespace MikanXR
 			var stringEnumConverter = new Newtonsoft.Json.Converters.StringEnumConverter();
 			string clientInfoString = JsonConvert.SerializeObject(clientInfo, stringEnumConverter);
 
-			return _coreAPI.SetClientProperty("clientInfo", clientInfoString);
+			return _coreAPI.SetClientInfo(clientInfoString);
 		}
 
 		public MikanResult Connect(string host="", string port="")
