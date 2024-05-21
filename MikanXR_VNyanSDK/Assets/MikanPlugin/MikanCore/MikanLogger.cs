@@ -49,13 +49,14 @@ namespace MikanCore
 
 		public void Log(MikanLogLevel log_level, string message)
 		{
-			//Debug.Log(message);
-
-			foreach (var callback in _logCallbacks)
+			if (log_level >= _settings.min_log_level)
 			{
-				if (callback != null)
+				foreach (var callback in _logCallbacks)
 				{
-					callback(log_level, message);
+					if (callback != null)
+					{
+						callback(log_level, message);
+					}
 				}
 			}
 		}

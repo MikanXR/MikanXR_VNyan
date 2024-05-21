@@ -229,7 +229,7 @@ namespace MikanXRPlugin
 
         void HandleMikanEvent(MikanEvent inEvent)
         {
-            Log(MikanLogLevel.Info, $"MikanClient: Event {inEvent.eventType}");
+            Log(MikanLogLevel.Debug, $"MikanClient: Event {inEvent.eventType}");
 
             if (inEvent is MikanConnectedEvent)
             {
