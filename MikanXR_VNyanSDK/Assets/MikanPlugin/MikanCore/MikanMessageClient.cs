@@ -235,7 +235,7 @@ namespace MikanCore
 			}
 
 			// Return the next message event in the queue
-			if (_mainThreadEventQueue.Count > 0)
+			if (_mainThreadMessageQueue.Count > 0)
 			{
 				message = _mainThreadMessageQueue.Dequeue();
 				return MikanResult.Success;
