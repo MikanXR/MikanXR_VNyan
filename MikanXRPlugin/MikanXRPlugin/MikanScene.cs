@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 using MikanXR;
+using Klak.Spout;
+using MikanCore;
 
 namespace MikanXRPlugin
 {
@@ -32,7 +34,7 @@ namespace MikanXRPlugin
 
     public class MikanScene : MikanBehavior
     {
-        [SerializeField]
+		[SerializeField]
         private string _sceneOriginAnchorName = "";
         public string SceneOriginAnchorName
         {
@@ -132,7 +134,9 @@ namespace MikanXRPlugin
 					"MikanCameraObject",
 					new System.Type[] {
 						typeof(Camera),
-						typeof(MikanCamera)});
+						typeof(MikanCamera),
+                        typeof(SpoutSender),
+                        typeof(SpoutSender)});
 
 				Camera cameraComponent = _sceneCameraObject.GetComponent<Camera>();
 				cameraComponent.stereoTargetEye = StereoTargetEyeMask.None;

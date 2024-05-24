@@ -1,37 +1,43 @@
 ﻿using System;
+using Klak.Spout;
 using MikanXR;
+using MikanCore;
 using UnityEngine;
+using System.Runtime.CompilerServices;
+using UnityEngine.Rendering;
+using UnityEngine.Experimental.Rendering;
+using System.Reflection;
 
 namespace MikanXRPlugin
 {
-    [ExecuteInEditMode]
     public class MikanCamera : MikanBehavior
     {
-        public static Shader rgbDepthPackShader = null;
+		public static Shader rgbDepthPackShader = null;
 
-        private Camera _xrCamera = null;
+		private Material _depthPackMaterial = null;
+
+		private Camera _xrCamera = null;
+
         private RenderTexture _colorRenderTexture = null;
+        public RenderTexture ColorRenderTexture => _colorRenderTexture;
+
         private RenderTexture _packDepthRenderTexture = null;
+        private RenderTexture PackDepthRenderTexture => _packDepthRenderTexture;
+
+		private System.Type _spoutSenderType = null;
+		private MethodInfo _spoutSenderUpdateMethodInfo = null;
+        private MethodInfo _spoutSenderDisposeMethodInfo = null;
+		private System.Object _colorSenderObject = null;
+        private System.Object _depthSenderObject = null;
+
         private ulong _lastRenderedFrame = 0;
         private MikanClientGraphicsApi _mikanClientGraphicsApi = MikanClientGraphicsApi.UNKNOWN;
 
-		private Material _material;
-		private Material material
-		{
-			get
-			{
-				if (_material == null && rgbDepthPackShader != null)
-				{
-					_material = new Material(rgbDepthPackShader);
-					_material.hideFlags = HideFlags.HideAndDontSave;
-				}
-				return _material;
-			}
-		}
-
 		public void Start()
         {
-            Log(MikanLogLevel.Info, "MikanCamera Start called");
+			Log(MikanLogLevel.Info, "MikanCamera Start called");
+
+            FetchSpoutAPI();
 
             if (_xrCamera == null)
             {
@@ -60,6 +66,41 @@ namespace MikanXRPlugin
             }
         }
 
+        private void FetchSpoutAPI()
+        {
+			Assembly sysData = Assembly.Load("Klak.Spout.Runtime");
+			_spoutSenderType = sysData.GetType("Klak.Spout.Sender");
+
+			_spoutSenderUpdateMethodInfo = _spoutSenderType.GetMethod("Update");
+            _spoutSenderDisposeMethodInfo = _spoutSenderType.GetMethod("Dispose");
+		}
+
+        private System.Object CreateSender(string senderName, Texture renderTexture)
+        {
+			return Activator.CreateInstance(
+				   _spoutSenderType,
+				   BindingFlags.Instance
+				   | BindingFlags.Public
+				   | BindingFlags.NonPublic,
+				   null,
+				   new System.Object[] { senderName, renderTexture }, // or your actual constructor arguments
+				   null
+				);
+		}
+
+        private void ReleaseSender(ref System.Object senderObject)
+        {
+            if (senderObject != null)
+            {
+                if (_spoutSenderDisposeMethodInfo != null)
+                {
+					_spoutSenderDisposeMethodInfo.Invoke(senderObject, null);
+				}
+
+                senderObject = null;
+            }
+		}
+
         public async void HandleCameraIntrinsicsChanged()
         {
             Log(MikanLogLevel.Info, "MikanCamera HandleCameraIntrinsicsChanged called");
@@ -83,6 +124,9 @@ namespace MikanXRPlugin
                         _xrCamera.clearFlags = CameraClearFlags.SolidColor;
                         _xrCamera.backgroundColor = Color.clear;
 
+                        // Disable the camera so that we can drive manual rendering
+                        _xrCamera.enabled = false;
+
                         Log(
                             MikanLogLevel.Info,
                             $"MikanClient: Updated camera params: fov:{_xrCamera.fieldOfView}, aspect:{_xrCamera.aspect}, near:{_xrCamera.nearClipPlane}, far:{_xrCamera.farClipPlane}");
@@ -103,6 +147,33 @@ namespace MikanXRPlugin
             }
         }
 
+        private RenderTextureDescriptor CreateUnityRenderTargetDescriptor(
+            MikanRenderTargetDescriptor RTDesc,
+            bool isColor)
+        {
+			RenderTextureDescriptor rtDesc = new RenderTextureDescriptor()
+            {
+				width = (int)RTDesc.width,
+			    height = (int)RTDesc.height,
+			    colorFormat = RenderTextureFormat.ARGB32,
+			    depthBufferBits = isColor ? 32 : 0,
+			    msaaSamples = 1,
+			    dimension = TextureDimension.Tex2D,
+			    volumeDepth = 1,
+			    enableRandomWrite = false,
+			    memoryless = RenderTextureMemoryless.None,
+			    useMipMap = false,
+			    autoGenerateMips = false,
+			    bindMS = false,
+			    useDynamicScale = false,
+			    shadowSamplingMode = ShadowSamplingMode.None,
+			    vrUsage = VRTextureUsage.None,
+			    graphicsFormat = GraphicsFormat.R8G8B8A8_UNorm
+		    };
+
+			return rtDesc;
+		}
+
 		public bool RecreateRenderTarget(MikanRenderTargetDescriptor RTDesc)
         {
             bool bSuccess = true;
@@ -119,21 +190,8 @@ namespace MikanXRPlugin
 
             _mikanClientGraphicsApi = RTDesc.graphicsAPI;
 
-            _colorRenderTexture = new RenderTexture(width, height, 32, RenderTextureFormat.ARGB32)
-            {
-                antiAliasing = 1,
-                wrapMode = TextureWrapMode.Clamp,
-                useMipMap = false,
-                anisoLevel = 0
-            };
-
-			_packDepthRenderTexture = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32)
-			{
-				antiAliasing = 1,
-				wrapMode = TextureWrapMode.Clamp,
-				useMipMap = false,
-				anisoLevel = 0
-			};
+            _colorRenderTexture = new RenderTexture(CreateUnityRenderTargetDescriptor(RTDesc, true));
+			_packDepthRenderTexture = new RenderTexture(CreateUnityRenderTargetDescriptor(RTDesc, false));
 
 			if (!_colorRenderTexture.Create())
             {
@@ -156,7 +214,28 @@ namespace MikanXRPlugin
                 Log(MikanLogLevel.Warning, "  No valid XRCamera found to assign render target to.");
             }
 
-            Log(MikanLogLevel.Info, $"  MikanCamera: Created {width}x{height} render target texture");
+			string clientId = MikanManager.Instance.MikanClient.ClientInfo.clientId;
+
+
+			if (_colorRenderTexture != null)
+            {
+                ReleaseSender(ref _colorSenderObject);
+                _colorSenderObject= CreateSender(clientId + "_color", _colorRenderTexture);
+            }
+
+			if (_packDepthRenderTexture != null)
+			{
+				ReleaseSender(ref _depthSenderObject);
+                _depthSenderObject= CreateSender(clientId + "_depth", _packDepthRenderTexture);
+			}
+
+			if (_depthPackMaterial == null && rgbDepthPackShader != null)
+			{
+				_depthPackMaterial = new Material(rgbDepthPackShader);
+				_depthPackMaterial.hideFlags = HideFlags.HideAndDontSave;
+            }
+
+			Log(MikanLogLevel.Info, $"  MikanCamera: Created {width}x{height} render target texture");
 
             return bSuccess;
         }
@@ -167,6 +246,9 @@ namespace MikanXRPlugin
             {
                 _xrCamera.targetTexture = null;
             }
+
+			ReleaseSender(ref _colorSenderObject);
+			ReleaseSender(ref _depthSenderObject);
 
             if (_colorRenderTexture != null && _colorRenderTexture.IsCreated())
             {
@@ -189,18 +271,25 @@ namespace MikanXRPlugin
             {
                 _xrCamera.Render();
 
-				if (material != null)
+				if (_colorSenderObject != null)
 				{
-					Graphics.Blit(_colorRenderTexture, _packDepthRenderTexture, material);
+					_spoutSenderUpdateMethodInfo.Invoke(_colorSenderObject, null);
 				}
+
+				if (_depthPackMaterial != null)
+				{
+					Graphics.Blit(_colorRenderTexture, _packDepthRenderTexture, _depthPackMaterial);
+
+                    if (_depthSenderObject != null)
+                    {
+                        _spoutSenderUpdateMethodInfo.Invoke(_depthSenderObject, null);
+                    }
+                }
 			}
 
-            if (_mikanClientGraphicsApi == MikanClientGraphicsApi.Direct3D11 ||
+			if (_mikanClientGraphicsApi == MikanClientGraphicsApi.Direct3D11 ||
                 _mikanClientGraphicsApi == MikanClientGraphicsApi.OpenGL)
             {
-                IntPtr textureNativePtr = _colorRenderTexture.GetNativeTexturePtr();
-                IntPtr depthTextureNativePtr = _packDepthRenderTexture.GetNativeTexturePtr();
-
                 // Fast interprocess shared texture transfer
                 MikanClientFrameRendered frame = new MikanClientFrameRendered
                 {
@@ -208,8 +297,7 @@ namespace MikanXRPlugin
                     zNear = _xrCamera.nearClipPlane,
                     zFar = _xrCamera.farClipPlane
                 };
-                ClientAPI.PublishRenderTargetTextures(
-                    textureNativePtr, depthTextureNativePtr, ref frame);
+                ClientAPI.RenderTargetAPI.PublishRenderTargetTextures(frame);
             }
         }
     }

@@ -1,4 +1,4 @@
-﻿using MikanXR;
+﻿using MikanCore;
 
 namespace MikanXRPlugin
 {

@@ -1,3 +1,4 @@
+using MikanCore;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System;
@@ -15,14 +16,14 @@ namespace MikanXR
 		public MikanResponse()
 		{
 			responseType= typeof(MikanResponse).Name;
-			requestId= MikanXR.Constants.INVALID_MIKAN_ID;
-			resultCode= MikanXR.MikanResult.Success;
+			requestId= Constants.INVALID_MIKAN_ID;
+			resultCode= MikanResult.Success;
 		}
 		public MikanResponse(string inResponseType)
 		{
 			responseType= inResponseType;
-			requestId= MikanXR.Constants.INVALID_MIKAN_ID;
-			resultCode= MikanXR.MikanResult.Success;
+			requestId= Constants.INVALID_MIKAN_ID;
+			resultCode= MikanResult.Success;
 		}		
 	};
 
@@ -48,8 +49,8 @@ namespace MikanXR
 	
 	public class MikanRequestManager
 	{
-		private MikanCoreNative.NativeLogCallback _nativeLogCallback;
-		private MikanCoreNative.NativeResponseCallback _nativeResponseCallback;
+		private MikanCoreAPI _coreAPI= null;
+		private MikanLogger _logger= null;
 		private Dictionary<string, IMikanResponseFactory> _responseFactory;
 
 		private class PendingRequest
@@ -59,25 +60,23 @@ namespace MikanXR
 		};
 		private Dictionary<int, PendingRequest> _pendingRequests;
 		
-		public MikanRequestManager(MikanCoreNative.NativeLogCallback logCallback)
+		public MikanRequestManager(MikanCoreAPI coreAPI)
 		{
-			_nativeLogCallback= logCallback;
-			_nativeResponseCallback = new MikanCoreNative.NativeResponseCallback(InternalResponseCallback);
+			_coreAPI= coreAPI;
+			_logger= coreAPI.Logger;
 			_responseFactory = new Dictionary<string, IMikanResponseFactory>();
 			_pendingRequests = new Dictionary<int, PendingRequest>();
 		}
 
 		public MikanResult Initialize()
 		{
-			MikanResult result = 
-				(MikanResult)MikanCoreNative.Mikan_SetResponseCallback(
-					_nativeResponseCallback, IntPtr.Zero);
-			if (result != MikanResult.Success)
+			if (_coreAPI.MessageClient != null)
 			{
-				return result;
+				_coreAPI.MessageClient.SetResponseHandler(InternalResponseHandler);
+				return MikanResult.Success;
 			}
 
-			return MikanResult.Success;
+			return MikanResult.InitFailed;
 		}
 
 		public void AddResponseFactory<T>() where T : MikanResponse
@@ -117,39 +116,73 @@ namespace MikanXR
             return promise.Task;
 		}
 		
-		public Task<MikanResponse> SendRequest(string utf8RequestType, int version = 0)
+		public Task<MikanResponse> SendRequest(string requestType, int version = 0)
 		{
-			return SendRequestIntenal(utf8RequestType, string.Empty, version);
+			MikanResult result =
+				_coreAPI.SendRequest(
+					requestType,
+					string.Empty,
+					version,
+					out int requestId);
+
+			return AddResponseHandler(requestId, result);
 		}
 		
-		public Task<MikanResponse> SendRequestWithPayload<T>(string utf8RequestType, T payload, int version = 0)
+		public Task<MikanResponse> SendRequestWithPayload<T>(string requestType, T payload, int version = 0)
 		{
 			// Serialize enumerations from strings rather than from integers
 			var stringEnumConverter = new Newtonsoft.Json.Converters.StringEnumConverter();
 			string payloadString = JsonConvert.SerializeObject(payload, stringEnumConverter);
 
-			return SendRequestIntenal(utf8RequestType, payloadString, version);
-		}		
-		
-		private Task<MikanResponse> SendRequestIntenal(
-			string utf8RequestType, 
-			string utf8Payload, 
-			int requestVersion)
-		{
-			MikanResult result = 
-				(MikanResult)MikanCoreNative.Mikan_SendRequest(
-					utf8RequestType, 
-					utf8Payload, 
-					requestVersion, 
+			MikanResult result =
+				_coreAPI.SendRequest(
+					requestType,
+					payloadString,
+					version,
 					out int requestId);
 
 			return AddResponseHandler(requestId, result);
+		}
+
+		public MikanResult SendRequestWithPayloadNoResponse<T>(string requestType, T payload, int version = 0)
+		{
+			// Serialize enumerations from strings rather than from integers
+			var stringEnumConverter = new Newtonsoft.Json.Converters.StringEnumConverter();
+			string payloadString = JsonConvert.SerializeObject(payload, stringEnumConverter);
+
+			return
+				_coreAPI.SendRequestNoReply(
+					requestType,
+					payloadString,
+					version);
 		}		
 
-		private void InternalResponseCallback(int requestId, string utf8ResponseString, IntPtr userData)
+		private bool InternalResponseHandler(string responseString, out string errorMesg)
 		{
-			PendingRequest pendingRequest= null;
+			var root = (JObject)JsonConvert.DeserializeObject(responseString);
 
+			errorMesg = "";
+
+			// Check if the key "responseType" exists
+			if (!root.TryGetValue("requestId", out JToken requestIdElement) || 
+				requestIdElement.Type != JTokenType.Integer)
+			{
+				errorMesg = "Missing or malformed requestId";
+				return false;
+			}
+
+			if (!root.TryGetValue("responseType", out JToken responseTypeElement) || 
+				responseTypeElement.Type != JTokenType.String)
+			{
+				errorMesg = "Missing or malformed responseType";
+				return false;
+			}
+
+			int requestId = (int)requestIdElement;
+			string responseType = (string)responseTypeElement;
+
+			// Look up the pending request
+			PendingRequest pendingRequest = null;
 			lock (_pendingRequests)
 			{
 				if (_pendingRequests.TryGetValue(requestId, out pendingRequest))
@@ -158,58 +191,37 @@ namespace MikanXR
 				}
 			}
 
-			if (pendingRequest != null)
+			// Bail if the corresponding pending request is not found
+			if (pendingRequest == null)
 			{
-				MikanResponse response = ParseResponseString(utf8ResponseString);
-
-				if (response == null)
-				{
-					response = new MikanResponse()
-					{
-						requestId = requestId,
-						resultCode = MikanResult.MalformedResponse
-					};
-				}
-
-				pendingRequest.promise.SetResult(response);
+				errorMesg = $"Invalid pending request id({requestId}) for response type {responseType}";
+				return false;
 			}
-		}
 
-		private MikanResponse ParseResponseString(string utf8ResponseString)
-		{
+			// Look up the response factory for the response type
 			MikanResponse response = null;
-
-			var root = (JObject)JsonConvert.DeserializeObject(utf8ResponseString);
-
-			// Check if the key "responseType" exists
-			if (root.TryGetValue("responseType", out JToken responseTypeElement))
+			if (_responseFactory.TryGetValue(responseType, out IMikanResponseFactory factory))
 			{
-				// Check if the value of "responseType" is a string
-				if (responseTypeElement.Type == JTokenType.String)
-				{
-					// Get the string value of "responseType"
-					string responseType = (string)responseTypeElement;
-					
-					if (_responseFactory.TryGetValue(responseType, out IMikanResponseFactory factory))
-					{
-						response = factory.CreateResponse(utf8ResponseString);
-					}
-					else
-					{
-						_nativeLogCallback((int)MikanLogLevel.Error, "Unknown response type: " + responseType);
-					}
-				}
-				else
-				{
-					_nativeLogCallback((int)MikanLogLevel.Error, "responseType is not a string.");
-				}
+				// Parse the response string using the factory
+				response = factory.CreateResponse(responseString);
 			}
 			else
 			{
-				_nativeLogCallback((int)MikanLogLevel.Error, "responseType key not found.");
+				errorMesg = $"Unknown response type: {responseType}";
+				
 			}
 
-			return response;
+			if (response == null)
+			{
+				response = new MikanResponse()
+				{
+					requestId = requestId,
+					resultCode = MikanResult.MalformedResponse
+				};
+			}
+
+			pendingRequest.promise.SetResult(response);
+			return response != null;
 		}
 	}	
 }

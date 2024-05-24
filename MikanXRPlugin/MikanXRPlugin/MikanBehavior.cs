@@ -1,7 +1,5 @@
-﻿using MikanXR;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using MikanCore;
+using MikanXR;
 using UnityEngine;
 
 namespace MikanXRPlugin
@@ -10,10 +8,11 @@ namespace MikanXRPlugin
     {
         public MikanClient Client => MikanManager.Instance.MikanClient;
         public MikanAPI ClientAPI => Client.ClientAPI;
+        public MikanLogger Logger => ClientAPI.CoreAPI.Logger;
 
         protected void Log(MikanLogLevel logLevel, string message)
         {
-            MikanManager.Instance?.Log(logLevel, message);
+            Logger?.Log(logLevel, message);
         }
     }
 }

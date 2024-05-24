@@ -1,4 +1,4 @@
-﻿using MikanXR;
+﻿using MikanCore;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,7 +6,7 @@ using UnityEngine.EventSystems;
 
 namespace MikanXRPlugin
 {
-    public class MikanXRPlugin : MonoBehaviour, VNyanInterface.IButtonClickedHandler, IMikanLogger
+    public class MikanXRPlugin : MonoBehaviour, VNyanInterface.IButtonClickedHandler
     {
 		public Shader rgbPackShader;
 
@@ -15,8 +15,9 @@ namespace MikanXRPlugin
 		private Text statusText;
 		private Text logText;
 
-		public MikanClient Client => MikanManager.Instance.MikanClient;
-		public MikanAPI ClientAPI => Client.ClientAPI;
+		private MikanManager _mikanManager= null;
+		private MikanClient _mikanClient= null;
+		private MikanLogger _logger= null;
 
 		// Settings
 		private string _sceneOriginAnchorName = "";
@@ -27,8 +28,12 @@ namespace MikanXRPlugin
 			MikanCamera.rgbDepthPackShader = rgbPackShader;
 
             // Create the MikanManager
-			MikanManager.ExternalLogger = this;
-			gameObject.AddComponent<MikanManager>();
+			_mikanManager= gameObject.AddComponent<MikanManager>();
+			_mikanClient= _mikanManager.MikanClient;
+
+			// Register the logger callback
+			_logger= _mikanClient.ClientAPI.CoreAPI.Logger;
+			_logger.AddLogCallback(Log);
 
 			SetupWindow();
 			LoadPluginSettings();
@@ -36,7 +41,7 @@ namespace MikanXRPlugin
 
 		public void OnDestroy()
         {
-            if (MikanManager.Instance != null)
+            if (_mikanManager != null)
             {
 				MikanManager.Instance.MikanClient.DisposeClient();
 			}
@@ -47,20 +52,20 @@ namespace MikanXRPlugin
 			if (VNyanInterface.VNyanInterface.VNyanUI != null)
 			{
 				// Register button to plugins window
-				Log(MikanLogLevel.Info, "Registering plugin button");
+				_logger.Log(MikanLogLevel.Info, "Registering plugin button");
 				VNyanInterface.VNyanInterface.VNyanUI.registerPluginButton("MikanXR", this);
 
 				// Create a window that will show when the button in plugins window is clicked
-				Log(MikanLogLevel.Info, "Instantiating Window Prefab");
+				_logger.Log(MikanLogLevel.Info, "Instantiating Window Prefab");
 				window = (GameObject)VNyanInterface.VNyanInterface.VNyanUI.instantiateUIPrefab(windowPrefab);
 			}
 			else
 			{
-				Log(MikanLogLevel.Info, "Create Test UI");
+				_logger.Log(MikanLogLevel.Info, "Create Test UI");
 				var testUIObject = new GameObject("Test UI");
 				new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
 
-				Log(MikanLogLevel.Info, "Instantiating Test Canvas");
+				_logger.Log(MikanLogLevel.Info, "Instantiating Test Canvas");
 				var canvasObject = new GameObject("Test Canvas");
 				
 				Canvas myCanvas = canvasObject.AddComponent<Canvas>();
@@ -70,7 +75,7 @@ namespace MikanXRPlugin
 				canvasObject.AddComponent<GraphicRaycaster>();
 				canvasObject.transform.SetParent(testUIObject.transform);
 
-				Log(MikanLogLevel.Info, "(Test Mode) Instantiating Window Prefab");
+				_logger.Log(MikanLogLevel.Info, "(Test Mode) Instantiating Window Prefab");
 				window = GameObject.Instantiate(windowPrefab);
 				window.transform.SetParent(canvasObject.transform);
 			}
@@ -109,12 +114,12 @@ namespace MikanXRPlugin
 
 			SetStatusMessage("Disconnected");
 
-			Client.OnConnected.AddListener(() =>
+			_mikanClient.OnConnected.AddListener(() =>
 			{
 				statusText.text = "Connected";
 			});
 
-			Client.OnDisconnected.AddListener(() =>
+			_mikanClient.OnDisconnected.AddListener(() =>
 			{
 				statusText.text = "Disconnected";
 			});
@@ -166,29 +171,6 @@ namespace MikanXRPlugin
 			}
 		}
 
-		private void AddLogMessage(string message)
-		{
-			if (logText != null)
-			{
-				logText.text += message + "\n";
-			}
-
-			Debug.Log(message);
-		}
-
-		// -- VNyanInterface.IButtonClickedHandler
-		public void pluginButtonClicked()
-		{
-			// Flip the visibility of the window when plugin window button is clicked
-			if (window != null)
-			{
-				window.SetActive(!window.activeSelf);
-				if (window.activeSelf)
-					window.transform.SetAsLastSibling();
-			}
-		}
-
-		// -- IMikanLogger
 		public void Log(MikanLogLevel mikanLogLevel, string log_message)
 		{
 			switch (mikanLogLevel)
@@ -213,5 +195,27 @@ namespace MikanXRPlugin
 				break;
 			}
 		}
+
+		private void AddLogMessage(string message)
+		{
+			if (logText != null)
+			{
+				logText.text += message + "\n";
+			}
+
+			Debug.Log(message);
+		}
+
+		// -- VNyanInterface.IButtonClickedHandler
+		public void pluginButtonClicked()
+		{
+			// Flip the visibility of the window when plugin window button is clicked
+			if (window != null)
+			{
+				window.SetActive(!window.activeSelf);
+				if (window.activeSelf)
+					window.transform.SetAsLastSibling();
+			}
+		}		
 	}
 }

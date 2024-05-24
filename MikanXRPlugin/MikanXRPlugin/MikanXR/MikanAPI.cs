@@ -1,9 +1,9 @@
+using MikanCore;
 using Newtonsoft.Json;
 using System;
-using System.Threading.Tasks;
 
 namespace MikanXR
-{	
+{
 	public class MikanClientInfo
 	{
 		public string clientId { get; set; } = "";
@@ -22,18 +22,17 @@ namespace MikanXR
 
 	public class MikanAPI : IDisposable
 	{
-		public delegate void MikanLogCallback(
-			MikanLogLevel log_level,
-			string log_message);
+		private MikanCoreAPI _coreAPI;
+		public MikanCoreAPI CoreAPI => _coreAPI;
 
-		private MikanCoreNative.NativeLogCallback _nativeLogCallback;
-		private MikanLogCallback _logCallback;
-		
 		private MikanRequestManager _requestManager;
 		public MikanRequestManager RequestManager => _requestManager;
 		
 		private MikanEventManager _eventManager;
 		public MikanEventManager EventManager => _eventManager;
+
+		private MikanRenderTargetAPI _renderTargetAPI;
+		public MikanRenderTargetAPI RenderTargetAPI => _renderTargetAPI;
 		
 		private MikanVideoSourceAPI _videoSourceAPI;
 		public MikanVideoSourceAPI VideoSourceAPI => _videoSourceAPI;
@@ -52,11 +51,13 @@ namespace MikanXR
 
 		public MikanAPI()
 		{
-			_nativeLogCallback = new MikanCoreNative.NativeLogCallback(InternalLogCallback);
-			_requestManager = new MikanRequestManager(_nativeLogCallback);
-			_eventManager = new MikanEventManager(_nativeLogCallback);
+			_coreAPI = new MikanCoreAPI();
+
+			_requestManager = new MikanRequestManager(_coreAPI);
+			_eventManager = new MikanEventManager(_coreAPI);
 			
 			// Create the child APIs
+			_renderTargetAPI = new MikanRenderTargetAPI(_requestManager);
 			_videoSourceAPI = new MikanVideoSourceAPI(_requestManager);	
 			_vrDeviceAPI = new MikanVRDeviceAPI(_requestManager);	
 			_scriptAPI = new MikanScriptAPI(_requestManager);
@@ -84,12 +85,12 @@ namespace MikanXR
 
 		public void Dispose()
 		{
-
+			_coreAPI.Dispose();
 		}
 
 		public MikanResult Initialize(MikanLogLevel minLogLevel)
-		{
-			MikanResult result = (MikanResult)MikanCoreNative.Mikan_Initialize(minLogLevel, _nativeLogCallback);
+		{		
+			MikanResult result = _coreAPI.Initialize(minLogLevel);
 			if (result != MikanResult.Success)
 			{
 				return result;
@@ -104,101 +105,44 @@ namespace MikanXR
 			return MikanResult.Success;
 		}
 
-		public MikanResult Shutdown()
+		public async void Shutdown()
 		{
-			int result = MikanCoreNative.Mikan_Shutdown();
-			return (MikanResult)result;
+			// Tell the server to free it's existing render target
+			// (ignored if there isn't a render target allocated)
+			if (GetIsConnected())
+			{
+				await _renderTargetAPI.FreeRenderTargetTextures();
+			}
+
+			_coreAPI.Shutdown();
 		}
 
 		public int GetCoreSDKVersion()
 		{
-			return MikanCoreNative.Mikan_GetCoreSDKVersion();
-		}
-
-		public string GetClientUniqueID()
-		{
-			return MikanCoreNative.GetClientUniqueID();
-		}
-		
-		public bool GetIsInitialized()
-		{
-			return MikanCoreNative.Mikan_GetIsInitialized();
-		}
-
-		public MikanResult SetGraphicsDeviceInterface(
-			MikanClientGraphicsApi api, 
-			IntPtr graphicsDeviceInterface)
-		{
-			int result = MikanCoreNative.Mikan_SetGraphicsDeviceInterface(api, graphicsDeviceInterface);
-			return (MikanResult)result;
-		}
-
-		public MikanResult GetGraphicsDeviceInterface(
-			MikanClientGraphicsApi api, 
-			out IntPtr outGraphicsDeviceInterface)
-		{
-			int result = MikanCoreNative.Mikan_GetGraphicsDeviceInterface(api, out outGraphicsDeviceInterface);
-			return (MikanResult)result;
-		}
-
-		public Task<MikanResponse> AllocateRenderTargetTextures(ref MikanRenderTargetDescriptor descriptor)
-		{
-			MikanResult result = 
-				(MikanResult)MikanCoreNative.Mikan_AllocateRenderTargetTextures(
-					ref descriptor, out int requestId);
-
-			return _requestManager.AddResponseHandler(requestId, result);
-		}
-
-		public MikanResult PublishRenderTargetTextures(
-			IntPtr apiColorTexturePtr, 
-			IntPtr apiDepthTexturePtr,
-			ref MikanClientFrameRendered frameInfo)
-		{
-			MikanResult result = 
-				(MikanResult)MikanCoreNative.Mikan_PublishRenderTargetTextures(
-					apiColorTexturePtr, 
-					apiDepthTexturePtr,
-					ref frameInfo);
-
-			return result;
-		}
-
-		public Task<MikanResponse> FreeRenderTargetTextures()
-		{
-			MikanResult result = (MikanResult)MikanCoreNative.Mikan_FreeRenderTargetTextures(out int requestId);
-
-			return _requestManager.AddResponseHandler(requestId, result);
-		}
-
-		public IntPtr GetPackDepthTextureResourcePtr()
-		{
-			return MikanCoreNative.Mikan_GetPackDepthTextureResourcePtr();
+			return _coreAPI.GetCoreSDKVersion();
 		}
 
 		public MikanResult SetClientInfo(MikanClientInfo clientInfo)
 		{
 			// Stamp with the core sdk version
 			clientInfo.mikanCoreSdkVersion = GetCoreSDKVersion();
-			clientInfo.clientId = GetClientUniqueID();
+			clientInfo.clientId = _coreAPI.GetClientUniqueID();
 
 			// Serialize enumerations from strings rather than from integers
 			var stringEnumConverter = new Newtonsoft.Json.Converters.StringEnumConverter();
 			string clientInfoString = JsonConvert.SerializeObject(clientInfo, stringEnumConverter);
-			int result = MikanCoreNative.Mikan_SetClientProperty("clientInfo", clientInfoString);
 
-			return (MikanResult)result;
+			return _coreAPI.SetClientInfo(clientInfoString);
 		}
 
 		public MikanResult Connect(string host="", string port="")
 		{
-			int result = MikanCoreNative.Mikan_Connect(host, port);
-			return (MikanResult)result;
+			return _coreAPI.Connect(host, port);
 		}
 
 		public bool GetIsConnected()
 		{
-			return MikanCoreNative.Mikan_GetIsConnected();
+			return _coreAPI.GetIsConnected();
 		}
 
 		public MikanResult FetchNextEvent(out MikanEvent outEvent)
@@ -208,21 +152,7 @@ namespace MikanXR
 
 		public MikanResult Disconnect()
 		{
-			int result = MikanCoreNative.Mikan_Disconnect();
-			return (MikanResult)result;
-		}
-
-		public void	SetLogCallback(MikanLogCallback logCallback)
-		{
-			_logCallback = logCallback;
-		}
-
-		private void InternalLogCallback(int logLevel, string logMessage)
-		{
-			if (_logCallback != null)
-			{
-				_logCallback((MikanLogLevel)logLevel, logMessage);
-			}
+			return _coreAPI.Disconnect();
 		}
 	}
 }

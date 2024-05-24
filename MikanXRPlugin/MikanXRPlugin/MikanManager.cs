@@ -1,5 +1,4 @@
-﻿using MikanXR;
-using System;
+﻿using MikanCore;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -7,13 +6,13 @@ namespace MikanXRPlugin
 {
 	public class MikanManager : MonoBehaviour
 	{
-		public static IMikanLogger ExternalLogger { get; set; } = null;
-
 		public static MikanManager Instance => _instance;
 		private static MikanManager _instance = null;
 
 		private MikanClient _mikanClient = null;
 		public MikanClient MikanClient => _mikanClient;
+
+		private MikanLogger _logger = null;
 
 		private GameObject _mikanSceneObject = null;
 		private MikanScene _mikanScene = null;
@@ -25,27 +24,17 @@ namespace MikanXRPlugin
 			//   and destroy any that are created while one already exists.
 			if (_instance != null)
 			{
-				Log(MikanLogLevel.Warning, $"MikanManager: Instance of {GetType().Name} already exists, destroying.");
 				DestroyImmediate(this);
 				return;
 			}
 			_instance = this;
 			DontDestroyOnLoad(this); // Don't destroy this object on scene changes
 
-			// If there is a unity logger scipt attached, use that by default
-			if (ExternalLogger != null)
-			{
-				SetLogHandler(ExternalLogger);
-			}
-			else
-			{
-				var defaultLogger = this.gameObject.AddComponent<MikanLogger_Unity>();
-				SetLogHandler(defaultLogger);
-			}
-			Log(MikanLogLevel.Debug, $"MikanManager: {name}: Awake()");
-
 			// Create a mikan client sibling component to manage client API
 			_mikanClient = this.gameObject.AddComponent<MikanClient>();
+
+			// Cache a reference to the logger
+			_logger= _mikanClient.ClientAPI.CoreAPI.Logger;
 
 			// Listen for when the scene changes
 			SceneManager.activeSceneChanged += OnSceneChanged;
@@ -59,39 +48,25 @@ namespace MikanXRPlugin
 
 		public void OnEnable()
 		{
-			Log(MikanLogLevel.Info, $"MikanManager: OnEnable Called");
+			_logger.Log(MikanLogLevel.Info, $"MikanManager: OnEnable Called");
 			_mikanClient.InitClient();
 		}
 
 		public void OnDisable()
 		{
-			Log(MikanLogLevel.Info, $"MikanManager: OnDisable Called");
+			_logger.Log(MikanLogLevel.Info, $"MikanManager: OnDisable Called");
 			_mikanClient.DisposeClient();
 		}
 
 		public void OnApplicationQuit()
 		{
-			Log(MikanLogLevel.Info, $"MikanManager: OnApplicationQuit Called");
+			_logger.Log(MikanLogLevel.Info, $"MikanManager: OnApplicationQuit Called");
 			_mikanClient.DisposeClient();
-		}
-
-		private IMikanLogger _logHandler = null;
-		public void SetLogHandler(IMikanLogger logHandler)
-		{
-			_logHandler = logHandler;
-		}
-
-		public void Log(MikanLogLevel log_level, string log_message)
-		{
-			if (_logHandler != null)
-			{
-				_logHandler.Log(log_level, log_message);
-			}
 		}
 
 		private void OnSceneChanged(Scene oldScene, Scene newScene)
 		{
-			Log(MikanLogLevel.Info,
+			_logger.Log(MikanLogLevel.Info,
 				$"MikanManager: Active scene changed: {oldScene.name} -> {newScene.name}");
 
 			DespawnMikanScene();
@@ -100,7 +75,7 @@ namespace MikanXRPlugin
 
 		void DespawnMikanScene()
 		{
-			Log(MikanLogLevel.Info, "MikanManager: Unloading MikanXR Scene");
+			_logger.Log(MikanLogLevel.Info, "MikanManager: Unloading MikanXR Scene");
 
 			if (_mikanSceneObject != null)
 			{
@@ -114,7 +89,7 @@ namespace MikanXRPlugin
 		{
 			if (_mikanSceneObject == null)
 			{
-				Log(MikanLogLevel.Warning, "MikanManager: Spawning Mikan XR Scene");
+				_logger.Log(MikanLogLevel.Warning, "MikanManager: Spawning Mikan XR Scene");
 				_mikanSceneObject = new GameObject(
 					"MikanSceneObject",
 					new System.Type[] {
@@ -128,26 +103,26 @@ namespace MikanXRPlugin
 			}
 			else
 			{
-				Log(MikanLogLevel.Info, "MikanXRBeatSaberController: Ignoring Spawn Mikan XR Scene request. Already spawned");
+				_logger.Log(MikanLogLevel.Info, "MikanXRBeatSaberController: Ignoring Spawn Mikan XR Scene request. Already spawned");
 			}
 		}
 
 		public void BindMikanScene(MikanScene InScene)
 		{
 			_mikanScene = InScene;
-			Log(MikanLogLevel.Info, $"MikanManager: Binding Mikan Scene");
+			_logger.Log(MikanLogLevel.Info, $"MikanManager: Binding Mikan Scene");
 		}
 
 		public void UnbindMikanScene(MikanScene InScene)
 		{
 			if (_mikanScene == InScene)
 			{
-				Log(MikanLogLevel.Info, $"MikanManager: Unbinding Mikan Scene");
+				_logger.Log(MikanLogLevel.Info, $"MikanManager: Unbinding Mikan Scene");
 				_mikanScene = InScene;
 			}
 			else
 			{
-				Log(MikanLogLevel.Warning, $"MikanManager: Trying to unbind incorrect scene.");
+				_logger.Log(MikanLogLevel.Warning, $"MikanManager: Trying to unbind incorrect scene.");
 			}
 		}
 	}

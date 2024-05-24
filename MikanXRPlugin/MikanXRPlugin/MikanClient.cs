@@ -3,6 +3,7 @@ using MikanXR;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Events;
+using MikanCore;
 
 namespace MikanXRPlugin
 {
@@ -59,13 +60,13 @@ namespace MikanXRPlugin
 
         MikanRenderTargetDescriptor _renderTargetDescriptor;
         public MikanRenderTargetDescriptor RenderTargetDescriptor => _renderTargetDescriptor;
-        public bool IsRenderTargetDescriptorValid => _renderTargetDescriptor.width > 0 && _renderTargetDescriptor.height > 0;
+        public bool IsRenderTargetDescriptorValid => 
+            _renderTargetDescriptor != null &&
+            _renderTargetDescriptor.width > 0 && 
+            _renderTargetDescriptor.height > 0;
 
         public bool InitClient()
         {
-            // Set the logging callback first that so that we can can see init errors
-            ClientAPI.SetLogCallback(Log);
-
             // Attempt to initialize the Mikan API (load MikanCore.dll)
             if (ClientAPI.Initialize(MikanLogLevel.Info) == MikanResult.Success)
             {
@@ -141,8 +142,6 @@ namespace MikanXRPlugin
 
         public void Update()
         {
-            Log(MikanLogLevel.Info, $"MikanClient: Update called");
-
             if (ClientAPI.GetIsConnected())
             {
                 while (ClientAPI.FetchNextEvent(out MikanEvent mikanEvent) == MikanResult.Success)
@@ -175,7 +174,7 @@ namespace MikanXRPlugin
         {
             Log(MikanLogLevel.Info, $"MikanClient FreeRenderBuffers Called");
 
-            ClientAPI.FreeRenderTargetTextures();
+            ClientAPI.RenderTargetAPI.FreeRenderTargetTextures();
 
 			// Tell any dependent systems that the render buffers have been disposed
 			if (OnRenderBufferDisposed != null)
@@ -205,7 +204,8 @@ namespace MikanXRPlugin
                 _renderTargetDescriptor.graphicsAPI = _clientInfo.graphicsAPI;
 
                 // Allocate any behind the scenes render target textures
-                var allocateResponse = await ClientAPI.AllocateRenderTargetTextures(ref _renderTargetDescriptor);
+                var allocateResponse = 
+                    await ClientAPI.RenderTargetAPI.AllocateRenderTargetTextures(_renderTargetDescriptor);
                 if (allocateResponse.resultCode == MikanResult.Success)
                 {
                     Log(MikanLogLevel.Info, "  MikanClient Allocated render target buffers");
@@ -229,7 +229,7 @@ namespace MikanXRPlugin
 
         void HandleMikanEvent(MikanEvent inEvent)
         {
-            Log(MikanLogLevel.Info, $"MikanClient: Event {inEvent.eventType}");
+            Log(MikanLogLevel.Debug, $"MikanClient: Event {inEvent.eventType}");
 
             if (inEvent is MikanConnectedEvent)
             {
@@ -373,7 +373,7 @@ namespace MikanXRPlugin
 
 		protected void Log(MikanLogLevel logLevel, string message)
 		{
-			MikanManager.Instance?.Log(logLevel, message);
+		    ClientAPI.CoreAPI.Logger.Log(logLevel, message);
 		}
 	}
 }
