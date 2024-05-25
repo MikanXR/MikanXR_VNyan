@@ -135,8 +135,7 @@ namespace MikanXRPlugin
 					new System.Type[] {
 						typeof(Camera),
 						typeof(MikanCamera),
-                        typeof(SpoutSender),
-                        typeof(SpoutSender)});
+                        typeof(LineRenderer)});
 
 				Camera cameraComponent = _sceneCameraObject.GetComponent<Camera>();
 				cameraComponent.stereoTargetEye = StereoTargetEyeMask.None;
