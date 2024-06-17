@@ -2,35 +2,12 @@
 using System.Collections.Generic;
 using UnityEngine;
 using MikanXR;
-using Klak.Spout;
 using MikanCore;
 
 namespace MikanXRPlugin
 {
     using MikanSpatialAnchorID = Int32;
-
-    [Serializable]
-    public class MikanAnchorInfo
-    {
-        public MikanSpatialAnchorID AnchorId = -1;
-        public string AnchorName = "";
-        public Vector3 MikanSpacePosition = new Vector3(0, 0, 0);
-        public Quaternion MikanSpaceOrientation = new Quaternion();
-        public Vector3 MikanSpaceScale = new Vector3(1, 1, 1);
-        public Matrix4x4 MikanSpaceTransform = Matrix4x4.identity;
-
-        public void ApplyMikanTransform(MikanTransform mikanTransform)
-        {
-            MikanSpacePosition = MikanMath.MikanVector3fToVector3(mikanTransform.position);
-            MikanSpaceOrientation = MikanMath.MikanQuatfToQuaternion(mikanTransform.rotation);
-            MikanSpaceScale = MikanMath.MikanScaleVector3fToVector3(mikanTransform.scale);
-            MikanSpaceTransform =
-                Matrix4x4.TRS(
-                    MikanSpacePosition,
-                    MikanSpaceOrientation,
-                    MikanSpaceScale);
-        }
-    }
+    using MikanStencilID = Int32;
 
     public class MikanScene : MikanBehavior
     {
@@ -63,6 +40,8 @@ namespace MikanXRPlugin
             }
         }
 
+        public MikanManager OwnerManager { get; set; }
+
 		private GameObject _sceneCameraObject = null;
 		private MikanCamera _sceneCamera = null;
         public MikanCamera SceneCamera => _sceneCamera;
@@ -70,11 +49,9 @@ namespace MikanXRPlugin
         private Matrix4x4 _mikanToSceneTransform = Matrix4x4.identity;
         public Matrix4x4 MikanToSceneTransform => _mikanToSceneTransform;
 
-        // The table of anchors fetched from Mikan
-        private Dictionary<MikanSpatialAnchorID, MikanAnchorInfo> _mikanAnchorInfoMap = new Dictionary<MikanSpatialAnchorID, MikanAnchorInfo>();
-
-        // A list of child MikanAnchor components bound to corresponding MikanAnchorInfo by name
-        private List<MikanAnchor> _sceneAnchors = new List<MikanAnchor>();
+		// The table of scene anchors currently active in the scene
+		private Dictionary<MikanSpatialAnchorID, MikanAnchor> _sceneAnchors 
+            = new Dictionary<MikanSpatialAnchorID, MikanAnchor>();
 
         public Color BackgroundColorKey = new Color(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -92,9 +69,6 @@ namespace MikanXRPlugin
             Client.OnAnchorPoseChanged.AddListener(HandleAnchorPoseChanged);
             Client.OnCameraAttachmentChanged.AddListener(HandleCameraAttachmentChanged);
             Client.OnNewFrameReceived.AddListener(HandleNewVideoSourceFrame);
-
-            // Gather all of the scene anchor components attached to the scene
-            RebuildSceneAnchorList();
 
             // Spawn the Mikan camera
             SpawnMikanCamera();
@@ -185,23 +159,25 @@ namespace MikanXRPlugin
 			}
 		}
 
-		public MikanAnchorInfo GetMikanAnchorInfoById(MikanSpatialAnchorID anchorId)
+        public MikanAnchor GetMikanAnchorById(MikanSpatialAnchorID anchorId)
         {
-            if (_mikanAnchorInfoMap.TryGetValue(anchorId, out MikanAnchorInfo anchorInfo))
+            if (_sceneAnchors.TryGetValue(anchorId, out MikanAnchor anchor))
             {
-                return anchorInfo;
+                return anchor;
             }
 
             return null;
         }
 
-        public MikanAnchorInfo GetMikanAnchorInfoByName(string anchorName)
+        public MikanAnchor GetMikanAnchorByName(string anchorName)
         {
-            foreach (MikanAnchorInfo anchorInfo in _mikanAnchorInfoMap.Values)
+            foreach (var kvp in _sceneAnchors)
             {
-                if (anchorInfo.AnchorName == anchorName)
+                MikanAnchor anchor = kvp.Value;
+
+                if (anchor.AnchorName == anchorName)
                 {
-                    return anchorInfo;
+                    return anchor;
                 }
             }
 
@@ -248,31 +224,38 @@ namespace MikanXRPlugin
 
         public async void HandleAnchorListChanged()
         {
-            _mikanAnchorInfoMap.Clear();
-
             MikanResponse listResponse = await ClientAPI.SpatialAnchorAPI.GetSpatialAnchorList();
             if (listResponse.resultCode == MikanResult.Success)
             {
                 MikanSpatialAnchorList spatialAnchorList = listResponse as MikanSpatialAnchorList;
+
+                // Destroy any anchors that are no longer in the scene
+                foreach (var kvp in _sceneAnchors)
+                {
+                    MikanSpatialAnchorID anchorID = kvp.Key;
+                    MikanAnchor anchor = kvp.Value;
+
+					if (!spatialAnchorList.spatial_anchor_id_list.Contains(anchorID))
+                    {
+						Destroy(anchor.gameObject);
+					}
+				}
 
                 foreach (var anchorID in spatialAnchorList.spatial_anchor_id_list)
                 {
                     MikanResponse anchorResponse = await ClientAPI.SpatialAnchorAPI.getSpatialAnchorInfo(anchorID);
                     if (anchorResponse.resultCode == MikanResult.Success)
                     {
-                        MikanSpatialAnchorInfo mikanAnchorInfo = anchorResponse as MikanSpatialAnchorInfo;
-						MikanAnchorInfo sceneAnchorInfo = new MikanAnchorInfo();
+                        MikanSpatialAnchorInfo anchorInfo = anchorResponse as MikanSpatialAnchorInfo;
 
-                        // Copy over the anchor id
-                        sceneAnchorInfo.AnchorId = anchorID;
-
-                        // Copy over the anchor name
-                        sceneAnchorInfo.AnchorName = mikanAnchorInfo.anchor_name;
-
-                        // Get the transform of the anchor in Mikan Space
-                        sceneAnchorInfo.ApplyMikanTransform(mikanAnchorInfo.world_transform);
-
-                        _mikanAnchorInfoMap.Add(anchorID, sceneAnchorInfo);
+                        if (_sceneAnchors.TryGetValue(anchorID, out MikanAnchor anchor))
+                        {
+                            anchor.ApplyAnchorInfo(anchorInfo);
+						}
+                        else
+                        {
+							_sceneAnchors.Add(anchorID, MikanAnchor.SpawnAnchor(this, anchorInfo));
+						}
                     }
                 }
             }
@@ -281,36 +264,38 @@ namespace MikanXRPlugin
             RecomputeMikanToSceneTransform();
 
             // Finally, update scene transform on all registered scene anchors
-            foreach (MikanAnchor mikanAnchor in _sceneAnchors)
+            foreach (var kvp in _sceneAnchors)
             {
-                mikanAnchor.FindAnchorInfo();
+                kvp.Value.UpdateSceneTransform();
             }
         }
 
         public void HandleAnchorPoseChanged(MikanAnchorPoseUpdateEvent AnchorPoseEvent)
         {
-            MikanAnchorInfo sceneAnchorInfo = GetMikanAnchorInfoById(AnchorPoseEvent.anchor_id);
+            MikanAnchor anchor = GetMikanAnchorById(AnchorPoseEvent.anchor_id);
 
-            if (sceneAnchorInfo != null)
+            if (anchor != null)
             {
                 // Update the scene anchor transform from the event
-                sceneAnchorInfo.ApplyMikanTransform(AnchorPoseEvent.transform);
+                anchor.MikanSpaceTransform.ApplyMikanTransform(AnchorPoseEvent.transform);
 
                 // If the anchor we are using as the scene origin changed,
                 // we need to recompute the MikanToSceneTransform
                 bool bUpdateAllAnchors = false;
-                if (sceneAnchorInfo.AnchorName == _sceneOriginAnchorName)
+                if (anchor.AnchorName == _sceneOriginAnchorName)
                 {
                     RecomputeMikanToSceneTransform();
                     bUpdateAllAnchors = true;
                 }
 
                 // Update all transforms associated anchor components
-                foreach (MikanAnchor anchor in _sceneAnchors)
+                foreach (var kvp in _sceneAnchors)
                 {
-                    if (bUpdateAllAnchors || anchor.AnchorID == AnchorPoseEvent.anchor_id)
+                    MikanAnchor otherAnchor = kvp.Value;
+
+                    if (bUpdateAllAnchors || otherAnchor.AnchorID == AnchorPoseEvent.anchor_id)
                     {
-                        anchor.UpdateSceneTransform();
+                        otherAnchor.UpdateSceneTransform();
                     }
                 }
             }
@@ -375,23 +360,18 @@ namespace MikanXRPlugin
         private void RecomputeMikanToSceneTransform()
         {
             // Get the scene origin anchor, if any given
-            MikanAnchorInfo originAnchorInfo = GetMikanAnchorInfoByName(SceneOriginAnchorName);
+            MikanAnchor originAnchor = GetMikanAnchorByName(SceneOriginAnchorName);
 
-            if (originAnchorInfo != null)
+            if (originAnchor != null)
             {
                 // Undo the origin anchor transform, then apply camera scale
-                _mikanToSceneTransform = originAnchorInfo.MikanSpaceTransform.inverse;
+                _mikanToSceneTransform = originAnchor.MikanSpaceTransform.MikanSpaceTRSMat.inverse;
             }
             else
             {
                 // Just apply the camera scale
                 _mikanToSceneTransform = Matrix4x4.identity;
             }
-        }
-
-        public void RebuildSceneAnchorList()
-        {
-            _sceneAnchors = new List<MikanAnchor>(gameObject.GetComponentsInChildren<MikanAnchor>());
         }
     }
 }

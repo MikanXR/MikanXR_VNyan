@@ -9,6 +9,8 @@ namespace MikanXRPlugin
 		public static MikanManager Instance => _instance;
 		private static MikanManager _instance = null;
 
+		public MikanXRPlugin OwnerPlugin { get; set; }
+
 		private MikanClient _mikanClient = null;
 		public MikanClient MikanClient => _mikanClient;
 
@@ -97,6 +99,7 @@ namespace MikanXRPlugin
 					});
 
 				MikanScene sceneComponent = _mikanSceneObject.GetComponent<MikanScene>();
+				sceneComponent.OwnerManager= this;
 
 				// Bind the scene to the MikanManager
 				BindMikanScene(sceneComponent);

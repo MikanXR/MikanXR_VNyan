@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 
 namespace MikanXR
-{	
+{
 	public class MikanStencilAPI
 	{
 		private MikanRequestManager _requestManager;
@@ -9,10 +9,13 @@ namespace MikanXR
 		public MikanStencilAPI(MikanRequestManager requestManager)
 		{
 			_requestManager= requestManager;
-			_requestManager.AddResponseFactory<MikanStencilList>();
-			_requestManager.AddResponseFactory<MikanStencilQuad>();
-			_requestManager.AddResponseFactory<MikanStencilBox>();
-			_requestManager.AddResponseFactory<MikanStencilModel>();
+			_requestManager.AddTextResponseFactory<MikanStencilList>();
+			_requestManager.AddTextResponseFactory<MikanStencilQuad>();
+			_requestManager.AddTextResponseFactory<MikanStencilBox>();
+			_requestManager.AddTextResponseFactory<MikanStencilModel>();
+			_requestManager.AddBinaryResponseFactory<
+				MikanStencilModeRenderGeometryFactory, 
+				MikanStencilModelRenderGeometry>();
 		}
 
 		private static readonly string k_getStencilList = "getStencilList";
@@ -37,6 +40,12 @@ namespace MikanXR
 		public Task<MikanResponse> getModelStencil(int stencilId) // returns MikanStencilModel
 		{
 			return _requestManager.SendRequestWithPayload<int>(k_getModelStencil, stencilId);
-		}		
+		}
+
+		private static readonly string k_getModelStencilMesh = "getModelStencilMesh";
+		public Task<MikanResponse> getModelStencilMesh(int stencilId) // returns MikanStencilModelMesh
+		{
+			return _requestManager.SendRequestWithPayload<int>(k_getModelStencilMesh, stencilId);
+		}
 	}
 }

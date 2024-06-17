@@ -11,9 +11,12 @@ namespace MikanXRPlugin
 		public Shader rgbPackShader;
 
 		public GameObject windowPrefab;
-        private GameObject window;
-		private Text statusText;
-		private Text logText;
+		public GameObject anchorPrefab;
+		public GameObject stencilModelPrefab;
+
+        private GameObject _window;
+		private Text _statusText;
+		private Text _logText;
 
 		private MikanManager _mikanManager= null;
 		private MikanClient _mikanClient= null;
@@ -29,6 +32,7 @@ namespace MikanXRPlugin
 
             // Create the MikanManager
 			_mikanManager= gameObject.AddComponent<MikanManager>();
+			_mikanManager.OwnerPlugin= this;
 			_mikanClient= _mikanManager.MikanClient;
 
 			// Register the logger callback
@@ -57,7 +61,7 @@ namespace MikanXRPlugin
 
 				// Create a window that will show when the button in plugins window is clicked
 				_logger.Log(MikanLogLevel.Info, "Instantiating Window Prefab");
-				window = (GameObject)VNyanInterface.VNyanInterface.VNyanUI.instantiateUIPrefab(windowPrefab);
+				_window = (GameObject)VNyanInterface.VNyanInterface.VNyanUI.instantiateUIPrefab(windowPrefab);
 			}
 			else
 			{
@@ -76,37 +80,37 @@ namespace MikanXRPlugin
 				canvasObject.transform.SetParent(testUIObject.transform);
 
 				_logger.Log(MikanLogLevel.Info, "(Test Mode) Instantiating Window Prefab");
-				window = GameObject.Instantiate(windowPrefab);
-				window.transform.SetParent(canvasObject.transform);
+				_window = GameObject.Instantiate(windowPrefab);
+				_window.transform.SetParent(canvasObject.transform);
 			}
 
-			if (window != null)
+			if (_window != null)
 			{
 				BindWindowComponents();
 
 				// Hide the window by default when spawned in vnyan
 				if (VNyanInterface.VNyanInterface.VNyanUI != null)
 				{
-					window.SetActive(false);
+					_window.SetActive(false);
 				}
 			}
 		}
 
 		private void BindWindowComponents()
 		{
-			window.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 0);
+			_window.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 0);
 
 			InputField SceneOriginAnchorNameInput =
-				window.transform.Find("Panel/SceneControls/SceneOriginField/Text").GetComponent<InputField>();
+				_window.transform.Find("Panel/SceneControls/SceneOriginField/Text").GetComponent<InputField>();
 			SceneOriginAnchorNameInput?.onValueChanged.AddListener((v) =>
 			{
 				_sceneOriginAnchorName = v;
 			});
 			SceneOriginAnchorNameInput?.SetTextWithoutNotify(_sceneOriginAnchorName);
 
-			statusText = window.transform.Find("Panel/StatusControls/Status Indicator").GetComponent<Text>();
-			logText = window.transform.Find("Panel/StatusControls/Scroll View/Viewport/Content").GetComponent<Text>();
-			window.transform.Find("Panel/TitleBar/CloseButton").GetComponent<Button>().onClick.AddListener(
+			_statusText = _window.transform.Find("Panel/StatusControls/Status Indicator").GetComponent<Text>();
+			_logText = _window.transform.Find("Panel/StatusControls/Scroll View/Viewport/Content").GetComponent<Text>();
+			_window.transform.Find("Panel/TitleBar/CloseButton").GetComponent<Button>().onClick.AddListener(
 				() =>
 				{
 					ClosePluginWindow();
@@ -116,12 +120,12 @@ namespace MikanXRPlugin
 
 			_mikanClient.OnConnected.AddListener(() =>
 			{
-				statusText.text = "Connected";
+				_statusText.text = "Connected";
 			});
 
 			_mikanClient.OnDisconnected.AddListener(() =>
 			{
-				statusText.text = "Disconnected";
+				_statusText.text = "Disconnected";
 			});
 		}
 
@@ -157,17 +161,17 @@ namespace MikanXRPlugin
 
 		private void ClosePluginWindow()
 		{
-			if (window != null)
+			if (_window != null)
 			{
-				window.SetActive(false);
+				_window.SetActive(false);
 			}
 		}
 
 		private void SetStatusMessage(string message)
 		{
-			if (statusText != null)
+			if (_statusText != null)
 			{
-				statusText.text = message;
+				_statusText.text = message;
 			}
 		}
 
@@ -198,9 +202,9 @@ namespace MikanXRPlugin
 
 		private void AddLogMessage(string message)
 		{
-			if (logText != null)
+			if (_logText != null)
 			{
-				logText.text += message + "\n";
+				_logText.text += message + "\n";
 			}
 
 			Debug.Log(message);
@@ -210,11 +214,11 @@ namespace MikanXRPlugin
 		public void pluginButtonClicked()
 		{
 			// Flip the visibility of the window when plugin window button is clicked
-			if (window != null)
+			if (_window != null)
 			{
-				window.SetActive(!window.activeSelf);
-				if (window.activeSelf)
-					window.transform.SetAsLastSibling();
+				_window.SetActive(!_window.activeSelf);
+				if (_window.activeSelf)
+					_window.transform.SetAsLastSibling();
 			}
 		}		
 	}

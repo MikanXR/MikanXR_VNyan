@@ -38,11 +38,18 @@ namespace MikanCore
 			}
 		}
 
-		public delegate bool ResponseHandler(string responseString, out string errorMesg);
-		private ResponseHandler _responseHandler = null;
-		public void SetResponseHandler(ResponseHandler handler)
+		public delegate bool TextResponseHandler(string responseString, out string errorMesg);
+		private TextResponseHandler _textResponseHandler = null;
+		public void SetTextResponseHandler(TextResponseHandler handler)
 		{
-			_responseHandler = handler;
+			_textResponseHandler = handler;
+		}
+
+		public delegate bool BinaryResponseHandler(byte[] responseData, out string errorMesg);
+		private BinaryResponseHandler _binaryResponseHandler = null;
+		public void SetBinaryResponseHandler(BinaryResponseHandler handler)
+		{
+			_binaryResponseHandler = handler;
 		}
 
 		public MikanMessageClient(MikanLogger logger)
@@ -177,9 +184,9 @@ namespace MikanCore
 				else if (root.TryGetValue("responseType", out JToken responseTypeElement) &&
 						responseTypeElement.Type == JTokenType.String)
 				{
-					if (_responseHandler != null)
+					if (_textResponseHandler != null)
 					{
-						if (!_responseHandler(message, out string errorMesg))
+						if (!_textResponseHandler(message, out string errorMesg))
 						{
 							EnqueueWebsocketErrorMessage(errorMesg);
 						}
@@ -194,9 +201,32 @@ namespace MikanCore
 					EnqueueWebsocketErrorMessage($"Received unsupported message: {message}");
 				}
 			}
+			else if (e.IsBinary)
+			{
+				byte[] bytes = e.RawData;
+
+				if (bytes != null && bytes.Length > 0)
+				{
+					if (_binaryResponseHandler != null)
+					{
+						if (!_binaryResponseHandler(bytes, out string errorMesg))
+						{
+							EnqueueWebsocketErrorMessage(errorMesg);
+						}
+					}
+					else
+					{
+						EnqueueWebsocketErrorMessage($"Received binary response message but no handler set");
+					}
+				}
+				else
+				{
+					EnqueueWebsocketErrorMessage("Received empty binary response");
+				}
+			}
 			else
 			{
-				EnqueueWebsocketErrorMessage("Received unsupported binary message");
+				EnqueueWebsocketErrorMessage("Received unsupported message type");
 			}
 		}
 

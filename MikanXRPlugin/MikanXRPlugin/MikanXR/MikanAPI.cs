@@ -65,8 +65,11 @@ namespace MikanXR
 			_spatialAnchorAPI = new MikanSpatialAnchorAPI(_requestManager);
 			
 			// Register base response types (child API classes will register their own types)
-			_requestManager.AddResponseFactory<MikanResponse>();
-			
+			_requestManager.AddTextResponseFactory<MikanResponse>();
+			_requestManager.AddBinaryResponseFactory<
+				MikanBinaryResponseFactory<MikanResponse>,
+				MikanResponse>();
+
 			// Register all event types
 			_eventManager.AddEventFactory<MikanConnectedEvent>();
 			_eventManager.AddEventFactory<MikanDisconnectedEvent>();
