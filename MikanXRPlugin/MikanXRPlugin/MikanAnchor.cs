@@ -3,32 +3,21 @@ using UnityEngine;
 
 namespace MikanXRPlugin
 {
-    /// The ID of a VR Device
+    /// The ID of a Spatial Anchor in Mikan
     using MikanSpatialAnchorID = System.Int32;
 
-    public class MikanAnchor : MikanBehavior
+    public class MikanAnchor : MonoBehaviour
     {
         public MikanScene OwnerScene { get; private set; }
 
         private MikanSpatialAnchorID _anchorId = -1;
         public MikanSpatialAnchorID AnchorID => _anchorId;
 
-        private MikanSpaceTransform _mikanSpaceTransform = new MikanSpaceTransform();
-        public MikanSpaceTransform MikanSpaceTransform => _mikanSpaceTransform;
+		private string _anchorName = "";
+		public string AnchorName => _anchorName;
 
-        [SerializeField]
-        private string _anchorName = "";
-        public string AnchorName
-        {
-            get
-            {
-                return _anchorName;
-            }
-            set
-            {
-                _anchorName = value;
-            }
-        }
+		private MikanSpaceTransform _mikanSpaceTransform = new MikanSpaceTransform();
+        public MikanSpaceTransform MikanSpaceTransform => _mikanSpaceTransform;
 
         public static MikanAnchor SpawnAnchor(MikanScene ownerScene, MikanSpatialAnchorInfo anchorInfo)
         {
@@ -52,7 +41,29 @@ namespace MikanXRPlugin
 				anchor = anchorGO.AddComponent<MikanAnchor>();
 			}
 
+            anchor.Setup(ownerScene, anchorInfo);
+
             return anchor;
+		}
+
+        public static void DespawnAnchor(MikanAnchor anchor)
+        {
+            if (anchor != null)
+            {
+                anchor.Teardown();
+				Destroy(anchor.gameObject);
+			}
+		}
+
+        private void Setup(MikanScene ownerScene, MikanSpatialAnchorInfo anchorInfo)
+        {
+            OwnerScene= ownerScene;
+
+            ApplyAnchorInfo(anchorInfo);
+        }
+
+        private void Teardown()
+        {
 		}
 
         public void ApplyAnchorInfo(MikanSpatialAnchorInfo anchorInfo)
@@ -62,26 +73,28 @@ namespace MikanXRPlugin
 
             // Update our transform in Mikan Space
             _mikanSpaceTransform.ApplyMikanTransform(anchorInfo.world_transform);
+
+            // Update the Unity transform
+            UpdateSceneTransform();
         }
 
-        public void UpdateSceneTransform()
+		public void HandleAnchorPoseChanged(MikanAnchorPoseUpdateEvent AnchorPoseEvent)
+		{
+			// Update the scene anchor transform from the event
+			MikanSpaceTransform.ApplyMikanTransform(AnchorPoseEvent.transform);
+
+			UpdateSceneTransform();
+		}
+
+		private void UpdateSceneTransform()
         {
-            if (OwnerScene != null)
-            {
-                // Get the anchor transform in Mikan Space
-                Matrix4x4 MikanSpaceTransform = _mikanSpaceTransform.MikanSpaceTRSMat;
+            // Get the anchor transform in Mikan Space
+            Matrix4x4 SceneSpaceTransform = _mikanSpaceTransform.MikanSpaceTRSMat;
 
-                // Get the conversion from the scene to go from Mikan to Scene space
-                Matrix4x4 MikanToSceneXform = OwnerScene.MikanToSceneTransform;
-
-                // Compute the scene space transform
-                Matrix4x4 SceneSpaceTransform = MikanToSceneXform * MikanSpaceTransform;
-
-                // Update the relative transform of the anchor
-                transform.localPosition = MikanMath.ExtractTranslationFromMatrix(SceneSpaceTransform);
-                transform.localRotation = MikanMath.ExtractRotationFromMatrix(SceneSpaceTransform);
-                transform.localScale = MikanMath.ExtractScaleFromMatrix(SceneSpaceTransform);
-            }
+            // Update the relative transform of the anchor
+            transform.localPosition = MikanMath.ExtractTranslationFromMatrix(SceneSpaceTransform);
+            transform.localRotation = MikanMath.ExtractRotationFromMatrix(SceneSpaceTransform);
+            transform.localScale = MikanMath.ExtractScaleFromMatrix(SceneSpaceTransform);
         }
     }
 }

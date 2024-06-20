@@ -7,22 +7,22 @@ using System.Runtime.CompilerServices;
 using UnityEngine.Rendering;
 using UnityEngine.Experimental.Rendering;
 using System.Reflection;
+using WebSocketSharp;
 
 namespace MikanXRPlugin
 {
-	public class MikanCamera : MikanBehavior
+	public class MikanCamera : MonoBehaviour
 	{
-		public static Shader rgbDepthPackShader = null;
+		public MikanScene OwnerScene { get; private set; }
+		private MikanLogger _logger = null;
+		private MikanClient _client = null;
 
 		private Material _depthPackMaterial = null;
 
 		private Camera _xrCamera = null;
 
 		private RenderTexture _colorRenderTexture = null;
-		public RenderTexture ColorRenderTexture => _colorRenderTexture;
-
 		private RenderTexture _packDepthRenderTexture = null;
-		private RenderTexture PackDepthRenderTexture => _packDepthRenderTexture;
 
 		private System.Type _spoutSenderType = null;
 		private MethodInfo _spoutSenderUpdateMethodInfo = null;
@@ -39,23 +39,92 @@ namespace MikanXRPlugin
 		private ulong _lastRenderedFrame = 0;
 		private MikanClientGraphicsApi _mikanClientGraphicsApi = MikanClientGraphicsApi.UNKNOWN;
 
-		public void Start()
+		public static MikanCamera SpawnCamera(MikanScene ownerScene)
 		{
-			Log(MikanLogLevel.Info, "MikanCamera Start called");
+			// Create the camera game object
+			var cameraObject = new GameObject(
+				"MikanCameraObject",
+				new System.Type[] {
+						typeof(Camera),
+						typeof(MikanCamera),
+						typeof(LineRenderer)});
 
-			FetchSpoutAPI();
-			RebuildFrustumGeometry();
+			// Set the parent of the camera object to the scene
+			// All camera transforms coming from Mikan will relative to the scene transform
+			cameraObject.transform.parent = ownerScene.transform;
 
-			if (_xrCamera == null)
+			// Setup the MikanCamera component after all the components are added
+			var sceneCamera = cameraObject.GetComponent<MikanCamera>();
+			sceneCamera.Setup(ownerScene);
+
+			return sceneCamera;
+		}
+
+		public static void DespawnCamera(MikanCamera camera)
+		{
+			if (camera != null)
 			{
-				BindXRCamera();
+				camera.TearDown();
+				Destroy(camera.gameObject);
 			}
 		}
 
-		public void OnDestroy()
+		private void Setup(MikanScene ownerScene)
 		{
-			Log(MikanLogLevel.Info, "MikanCamera OnDestroy called");
+			OwnerScene = ownerScene;
+			_client = ownerScene.OwnerManager.MikanClient;
+			_logger = ownerScene.OwnerManager.OwnerPlugin.Logger;
+
+			// Create a material used to pack the depth buffer into an RGBA texture
+			var _rgbDepthPackShader = ownerScene.OwnerManager.OwnerPlugin.rgbPackShader;
+			if (_rgbDepthPackShader != null)
+			{
+				_depthPackMaterial = new Material(_rgbDepthPackShader);
+				_depthPackMaterial.hideFlags = HideFlags.HideAndDontSave;
+			}
+
+			// Use reflection to fetch the KlakSpout API
+			FetchSpoutAPI();
+
+			// Setup the sibling Unity Camera component for XR rendering
+			SetupXRCamera();
+
+			// If we are connected to Mikan, copy the camera intrinsics to the Unity Camera
+			// If not, wait for Mikan to connect and we'll copy the settings then
+			if (_client.ClientAPI.GetIsConnected())
+			{
+				HandleCameraIntrinsicsChanged();
+			}
+			else
+			{
+				// Generate default geo for the frustum line renderer if not yet connected
+				RebuildFrustumGeometry();
+			}
+
+			// If we have a valid render target descriptor (defined video source),
+			// create a valid render target from the descriptor
+			// If not, wait for Mikan to connect and we'll create it then
+			if (_client.IsRenderTargetDescriptorValid)
+			{
+				RecreateRenderTarget(_client.RenderTargetDescriptor);
+			}
+		}
+
+		private void TearDown()
+		{
+			_logger.Log(MikanLogLevel.Info, "MikanCamera OnDestroy called");
 			DisposeRenderTarget();
+		}
+
+		public void Start()
+		{
+			_logger.Log(MikanLogLevel.Info, "MikanCamera Start called");
+
+
+			if (_xrCamera == null)
+			{
+				SetupXRCamera();
+			}
 		}
 
 		private void RebuildFrustumGeometry()
@@ -146,21 +215,27 @@ namespace MikanXRPlugin
 			}
 		}
 
-		public void BindXRCamera()
+		public void SetupXRCamera()
 		{
-			Log(MikanLogLevel.Info, "MikanCamera BindXRCamera called");
+			_logger.Log(MikanLogLevel.Info, "MikanCamera BindXRCamera called");
 
 			_xrCamera = gameObject.GetComponent<Camera>();
 			if (_xrCamera != null)
 			{
-				Log(MikanLogLevel.Info, "  Found XRCamera");
+				_logger.Log(MikanLogLevel.Info, "  Found XRCamera");
+
+				// Setup the unity camera component used to render the XR scene
+				_xrCamera.stereoTargetEye = StereoTargetEyeMask.None;
+				_xrCamera.backgroundColor = new Color(0, 0, 0, 0);
+				_xrCamera.clearFlags = CameraClearFlags.SolidColor;
+				_xrCamera.forceIntoRenderTexture = true;
 
 				// Don't render anything on the UI layer
 				_xrCamera.cullingMask = _xrCamera.cullingMask &= ~(1 << LayerMask.NameToLayer("UI"));
 			}
 			else
 			{
-				Log(MikanLogLevel.Warning, "  Failed to find sibling XRCamera");
+				_logger.Log(MikanLogLevel.Warning, "  Failed to find sibling XRCamera");
 			}
 		}
 
@@ -201,10 +276,10 @@ namespace MikanXRPlugin
 
 		public async void HandleCameraIntrinsicsChanged()
 		{
-			Log(MikanLogLevel.Info, "MikanCamera HandleCameraIntrinsicsChanged called");
-			if (ClientAPI.GetIsConnected())
+			_logger.Log(MikanLogLevel.Info, "MikanCamera HandleCameraIntrinsicsChanged called");
+			if (_client.ClientAPI.GetIsConnected())
 			{
-				var response = await ClientAPI.VideoSourceAPI.GetVideoSourceIntrinsics();
+				var response = await _client.ClientAPI.VideoSourceAPI.GetVideoSourceIntrinsics();
 				if (response.resultCode == MikanResult.Success)
 				{
 					var videoSourceIntrinsics = response as MikanVideoSourceIntrinsics;
@@ -232,23 +307,23 @@ namespace MikanXRPlugin
 						_zFar = (float)monoIntrinsics.zfar;
 						RebuildFrustumGeometry();
 
-						Log(
+						_logger.Log(
 							MikanLogLevel.Info,
 							$"MikanClient: Updated camera params: fov:{_xrCamera.fieldOfView}, aspect:{_xrCamera.aspect}, near:{_xrCamera.nearClipPlane}, far:{_xrCamera.farClipPlane}");
 					}
 					else
 					{
-						Log(MikanLogLevel.Warning, "  No valid XRCamera found to apply intrinsics to.");
+						_logger.Log(MikanLogLevel.Warning, "  No valid XRCamera found to apply intrinsics to.");
 					}
 				}
 				else
 				{
-					Log(MikanLogLevel.Error, "  Failed to fetch camera intrinsics!");
+					_logger.Log(MikanLogLevel.Error, "  Failed to fetch camera intrinsics!");
 				}
 			}
 			else
 			{
-				Log(MikanLogLevel.Info, "  Ignoring HandleCameraIntrinsicsChanged - Mikan Disconnected.");
+				_logger.Log(MikanLogLevel.Info, "  Ignoring HandleCameraIntrinsicsChanged - Mikan Disconnected.");
 			}
 		}
 
@@ -285,11 +360,13 @@ namespace MikanXRPlugin
 			int width = (int)RTDesc.width;
 			int height = (int)RTDesc.height;
 
-			Log(MikanLogLevel.Info, "MikanCamera RecreateRenderTarget called");
+			_logger.Log(MikanLogLevel.Info, "MikanCamera RecreateRenderTarget called");
 
 			if (width <= 0 || height <= 0)
 			{
-				Log(MikanLogLevel.Error, "  MikanCamera: Unable to create render texture. Texture dimension must be higher than zero.");
+				_logger.Log(
+					MikanLogLevel.Error, 
+					"  MikanCamera: Unable to create render texture. Texture dimension must be higher than zero.");
 				return false;
 			}
 
@@ -300,13 +377,13 @@ namespace MikanXRPlugin
 
 			if (!_colorRenderTexture.Create())
 			{
-				Log(MikanLogLevel.Error, "  MikanCamera: Unable to create render texture.");
+				_logger.Log(MikanLogLevel.Error, "  MikanCamera: Unable to create render texture.");
 				return false;
 			}
 
 			if (!_packDepthRenderTexture.Create())
 			{
-				Log(MikanLogLevel.Error, "  MikanCamera: Unable to create render texture.");
+				_logger.Log(MikanLogLevel.Error, "  MikanCamera: Unable to create render texture.");
 				return false;
 			}
 
@@ -316,11 +393,10 @@ namespace MikanXRPlugin
 			}
 			else
 			{
-				Log(MikanLogLevel.Warning, "  No valid XRCamera found to assign render target to.");
+				_logger.Log(MikanLogLevel.Warning, "  No valid XRCamera found to assign render target to.");
 			}
 
-			string clientId = MikanManager.Instance.MikanClient.ClientInfo.clientId;
-
+			string clientId = _client.ClientInfo.clientId;
 
 			if (_colorRenderTexture != null)
 			{
@@ -334,13 +410,7 @@ namespace MikanXRPlugin
 				_depthSenderObject = CreateSender(clientId + "_depth", _packDepthRenderTexture);
 			}
 
-			if (_depthPackMaterial == null && rgbDepthPackShader != null)
-			{
-				_depthPackMaterial = new Material(rgbDepthPackShader);
-				_depthPackMaterial.hideFlags = HideFlags.HideAndDontSave;
-			}
-
-			Log(MikanLogLevel.Info, $"  MikanCamera: Created {width}x{height} render target texture");
+			_logger.Log(MikanLogLevel.Info, $"  MikanCamera: Created {width}x{height} render target texture");
 
 			return bSuccess;
 		}
@@ -402,7 +472,7 @@ namespace MikanXRPlugin
 					zNear = _xrCamera.nearClipPlane,
 					zFar = _xrCamera.farClipPlane
 				};
-				ClientAPI.RenderTargetAPI.PublishRenderTargetTextures(frame);
+				_client.ClientAPI.RenderTargetAPI.PublishRenderTargetTextures(frame);
 			}
 		}
 	}

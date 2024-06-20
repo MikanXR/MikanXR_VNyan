@@ -6,53 +6,101 @@ using UnityEngine.EventSystems;
 
 namespace MikanXRPlugin
 {
-    public class MikanXRPlugin : MonoBehaviour, VNyanInterface.IButtonClickedHandler
-    {
+	public class MikanXRPlugin : MonoBehaviour, VNyanInterface.IButtonClickedHandler
+	{
 		public Shader rgbPackShader;
 
 		public GameObject windowPrefab;
 		public GameObject anchorPrefab;
 		public GameObject stencilModelPrefab;
 
-        private GameObject _window;
-		private Text _statusText;
-		private Text _logText;
+		private MikanSettingsWindow _settingsWindow;
 
-		private MikanManager _mikanManager= null;
-		private MikanClient _mikanClient= null;
-		private MikanLogger _logger= null;
+		private bool _isMikanInitialized = false;
 
-		// Settings
-		private string _sceneOriginAnchorName = "";
+		private MikanSettings _settings = null;
+		public MikanSettings Settings => _settings;
 
-        public void Awake()
-        {
-			// Set the depth pack shader for the MikanCamera
-			MikanCamera.rgbDepthPackShader = rgbPackShader;
+		private MikanManager _mikanManager = null;
+		public MikanManager Manager => _mikanManager;
 
-            // Create the MikanManager
-			_mikanManager= gameObject.AddComponent<MikanManager>();
-			_mikanManager.OwnerPlugin= this;
-			_mikanClient= _mikanManager.MikanClient;
+		private MikanClient _mikanClient = null;
+		public MikanClient Client => _mikanClient;
 
-			// Register the logger callback
-			_logger= _mikanClient.ClientAPI.CoreAPI.Logger;
-			_logger.AddLogCallback(Log);
+		private MikanLogger _logger = null;
+		public MikanLogger Logger => _logger;
 
-			SetupWindow();
-			LoadPluginSettings();
+		public void Awake()
+		{
+			// Initialize the settings
+			_settings = new MikanSettings();
+			_settings.LoadSettings();
+
+			// Setup MikanManager, Client and Logger
+			SetupMikan();
+
+			// Create the Settings UI
+			SetupVNyanUI();
 		}
 
 		public void OnDestroy()
-        {
-            if (_mikanManager != null)
-            {
-				MikanManager.Instance.MikanClient.DisposeClient();
+		{
+			TearDownMikan();
+		}
+
+		public void OnApplicationQuit()
+		{
+			TearDownMikan();
+
+			if (_settings != null)
+			{
+				_settings.SaveSettings();
 			}
 		}
 
-		private void SetupWindow()
+		private void SetupMikan()
 		{
+			if (!_isMikanInitialized)
+			{
+				// Create the MikanManager
+				_mikanManager = gameObject.AddComponent<MikanManager>();
+				_mikanManager.Setup(this);
+
+				// Cache the MikanClient that the MikanManager created
+				_mikanClient = _mikanManager.MikanClient;
+
+				// Register the logger callback
+				_logger = _mikanClient.ClientAPI.CoreAPI.Logger;
+				_logger.AddLogCallback(Log);
+
+				_isMikanInitialized = true;
+			}
+		}
+
+		private void TearDownMikan()
+		{
+			if (_isMikanInitialized)
+			{
+				if (_mikanManager != null)
+				{
+					_mikanManager.TearDown();
+				}
+
+				if (_logger != null)
+				{
+					_logger.RemoveLogCallback(Log);
+					_logger = null;
+				}
+
+				_mikanClient = null;
+				_isMikanInitialized = false;
+			}
+		}
+
+		public void SetupVNyanUI()
+		{
+			GameObject settingsWindowGO;
+
 			if (VNyanInterface.VNyanInterface.VNyanUI != null)
 			{
 				// Register button to plugins window
@@ -61,7 +109,7 @@ namespace MikanXRPlugin
 
 				// Create a window that will show when the button in plugins window is clicked
 				_logger.Log(MikanLogLevel.Info, "Instantiating Window Prefab");
-				_window = (GameObject)VNyanInterface.VNyanInterface.VNyanUI.instantiateUIPrefab(windowPrefab);
+				settingsWindowGO = (GameObject)VNyanInterface.VNyanInterface.VNyanUI.instantiateUIPrefab(windowPrefab);
 			}
 			else
 			{
@@ -71,7 +119,7 @@ namespace MikanXRPlugin
 
 				_logger.Log(MikanLogLevel.Info, "Instantiating Test Canvas");
 				var canvasObject = new GameObject("Test Canvas");
-				
+
 				Canvas myCanvas = canvasObject.AddComponent<Canvas>();
 				myCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
 
@@ -80,98 +128,20 @@ namespace MikanXRPlugin
 				canvasObject.transform.SetParent(testUIObject.transform);
 
 				_logger.Log(MikanLogLevel.Info, "(Test Mode) Instantiating Window Prefab");
-				_window = GameObject.Instantiate(windowPrefab);
-				_window.transform.SetParent(canvasObject.transform);
+				settingsWindowGO = GameObject.Instantiate(windowPrefab);
+				settingsWindowGO.transform.SetParent(canvasObject.transform);
 			}
 
-			if (_window != null)
+			if (settingsWindowGO != null)
 			{
-				BindWindowComponents();
+				_settingsWindow = settingsWindowGO.GetComponent<MikanSettingsWindow>();
+				_settingsWindow.Setup(this);
 
 				// Hide the window by default when spawned in vnyan
 				if (VNyanInterface.VNyanInterface.VNyanUI != null)
 				{
-					_window.SetActive(false);
+					_settingsWindow.HideWindow();
 				}
-			}
-		}
-
-		private void BindWindowComponents()
-		{
-			_window.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 0);
-
-			InputField SceneOriginAnchorNameInput =
-				_window.transform.Find("Panel/SceneControls/SceneOriginField/Text").GetComponent<InputField>();
-			SceneOriginAnchorNameInput?.onValueChanged.AddListener((v) =>
-			{
-				_sceneOriginAnchorName = v;
-			});
-			SceneOriginAnchorNameInput?.SetTextWithoutNotify(_sceneOriginAnchorName);
-
-			_statusText = _window.transform.Find("Panel/StatusControls/Status Indicator").GetComponent<Text>();
-			_logText = _window.transform.Find("Panel/StatusControls/Scroll View/Viewport/Content").GetComponent<Text>();
-			_window.transform.Find("Panel/TitleBar/CloseButton").GetComponent<Button>().onClick.AddListener(
-				() =>
-				{
-					ClosePluginWindow();
-				});
-
-			SetStatusMessage("Disconnected");
-
-			_mikanClient.OnConnected.AddListener(() =>
-			{
-				_statusText.text = "Connected";
-			});
-
-			_mikanClient.OnDisconnected.AddListener(() =>
-			{
-				_statusText.text = "Disconnected";
-			});
-		}
-
-		private void LoadPluginSettings()
-        {
-			if (VNyanInterface.VNyanInterface.VNyanSettings != null)
-			{
-				Dictionary<string, string> settings = 
-					VNyanInterface.VNyanInterface.VNyanSettings.loadSettings("MikanXRPlugin.cfg");
-
-				if (settings != null)
-				{
-					settings.TryGetValue("sceneOriginAnchorName", out _sceneOriginAnchorName);
-				}
-			}
-        }
-
-        public void OnApplicationQuit()
-        {
-            SavePluginSettings();
-        }
-
-        private void SavePluginSettings()
-        {
-			if (VNyanInterface.VNyanInterface.VNyanSettings != null)
-			{
-				Dictionary<string, string> settings = new Dictionary<string, string>();
-				settings["sceneOriginAnchorName"] = _sceneOriginAnchorName;
-
-				VNyanInterface.VNyanInterface.VNyanSettings.saveSettings("MikanXRPlugin.cfg", settings);
-			}
-		}
-
-		private void ClosePluginWindow()
-		{
-			if (_window != null)
-			{
-				_window.SetActive(false);
-			}
-		}
-
-		private void SetStatusMessage(string message)
-		{
-			if (_statusText != null)
-			{
-				_statusText.text = message;
 			}
 		}
 
@@ -202,9 +172,10 @@ namespace MikanXRPlugin
 
 		private void AddLogMessage(string message)
 		{
-			if (_logText != null)
+			// Also route logs to the settings window
+			if (_settingsWindow != null)
 			{
-				_logText.text += message + "\n";
+				_settingsWindow.AddLogMessage(message);
 			}
 
 			Debug.Log(message);
@@ -213,13 +184,10 @@ namespace MikanXRPlugin
 		// -- VNyanInterface.IButtonClickedHandler
 		public void pluginButtonClicked()
 		{
-			// Flip the visibility of the window when plugin window button is clicked
-			if (_window != null)
+			if (_settingsWindow != null)
 			{
-				_window.SetActive(!_window.activeSelf);
-				if (_window.activeSelf)
-					_window.transform.SetAsLastSibling();
+				_settingsWindow.ToggleWindow();
 			}
-		}		
+		}
 	}
 }

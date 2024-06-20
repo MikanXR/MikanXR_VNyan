@@ -7,99 +7,108 @@ using MikanCore;
 
 namespace MikanXRPlugin
 {
-    public class MikanClient : MonoBehaviour
-    {
+	public class MikanClient : MonoBehaviour
+	{
+		public MikanManager OwnerManager
+		{
+			get; private set;
+		}
+		private MikanLogger _logger = null;
+
+		private MikanAPI _clientApi = null;
 		public MikanAPI ClientAPI => _clientApi;
-		private MikanAPI _clientApi = new MikanAPI();
 
 		private string _mikanAddress = "ws://127.0.0.1";
-        public string MikanAddress
-        {
-			get { return _mikanAddress; }
-			set { 
-                _mikanAddress = value; 
-                if (ClientAPI.GetIsConnected())
-                {
-                    _clientApi.Disconnect();
-                }
-            }
+		public string MikanAddress
+		{
+			get
+			{
+				return _mikanAddress;
+			}
+			set
+			{
+				_mikanAddress = value;
+			}
 		}
 
-        private string _mikanPort = "8080";
-        public string MikanPort
+		private string _mikanPort = "8080";
+		public string MikanPort
 		{
-            get { return _mikanPort; }
-            set
-            {
-				_mikanPort = value; 
-				if (ClientAPI.GetIsConnected())
-                {
-					_clientApi.Disconnect();
-				}
+			get
+			{
+				return _mikanPort;
 			}
-        }
+			set
+			{
+				_mikanPort = value;
+			}
+		}
 
 		private float _mikanReconnectTimeout = 0.0f;
 
 		private MikanClientInfo _clientInfo = null;
-        public MikanClientInfo ClientInfo => _clientInfo;
+		public MikanClientInfo ClientInfo => _clientInfo;
 
 		private bool _apiInitialized = false;
-        public bool IsApiInitialized => _apiInitialized;
+		public bool IsApiInitialized => _apiInitialized;
 
 		public UnityEvent OnConnected = new UnityEvent();
-        public UnityEvent OnDisconnected = new UnityEvent();
-        public UnityEvent OnRenderBufferCreated = new UnityEvent();
-        public UnityEvent OnRenderBufferDisposed = new UnityEvent();
-        public UnityEvent OnAnchorListChanged = new UnityEvent();
-        public UnityEvent<MikanAnchorPoseUpdateEvent> OnAnchorPoseChanged = new UnityEvent<MikanAnchorPoseUpdateEvent>();
-        public UnityEvent<MikanVideoSourceNewFrameEvent> OnNewFrameReceived = new UnityEvent<MikanVideoSourceNewFrameEvent>();
-        public UnityEvent OnCameraIntrinsicsChanged = new UnityEvent();
-        public UnityEvent OnCameraAttachmentChanged = new UnityEvent();
-        public UnityEvent<string> OnScriptMessage = new UnityEvent<string>();
+		public UnityEvent OnDisconnected = new UnityEvent();
+		public UnityEvent OnRenderBufferCreated = new UnityEvent();
+		public UnityEvent OnRenderBufferDisposed = new UnityEvent();
+		public UnityEvent OnAnchorListChanged = new UnityEvent();
+		public UnityEvent<MikanAnchorPoseUpdateEvent> OnAnchorPoseChanged = new UnityEvent<MikanAnchorPoseUpdateEvent>();
+		public UnityEvent<MikanVideoSourceNewFrameEvent> OnNewFrameReceived = new UnityEvent<MikanVideoSourceNewFrameEvent>();
+		public UnityEvent OnCameraIntrinsicsChanged = new UnityEvent();
+		public UnityEvent OnCameraAttachmentChanged = new UnityEvent();
+		public UnityEvent<string> OnScriptMessage = new UnityEvent<string>();
 
-        MikanRenderTargetDescriptor _renderTargetDescriptor;
-        public MikanRenderTargetDescriptor RenderTargetDescriptor => _renderTargetDescriptor;
-        public bool IsRenderTargetDescriptorValid => 
-            _renderTargetDescriptor != null &&
-            _renderTargetDescriptor.width > 0 && 
-            _renderTargetDescriptor.height > 0;
+		MikanRenderTargetDescriptor _renderTargetDescriptor;
+		public MikanRenderTargetDescriptor RenderTargetDescriptor => _renderTargetDescriptor;
+		public bool IsRenderTargetDescriptorValid =>
+			_renderTargetDescriptor != null &&
+			_renderTargetDescriptor.width > 0 &&
+			_renderTargetDescriptor.height > 0;
 
-        public bool InitClient()
-        {
-            // Attempt to initialize the Mikan API (load MikanCore.dll)
-            if (ClientAPI.Initialize(MikanLogLevel.Info) == MikanResult.Success)
-            {
+		public bool Setup(MikanManager ownerManager)
+		{
+			OwnerManager = ownerManager;
+			_clientApi = new MikanAPI();
+			_logger = _clientApi.CoreAPI.Logger;
+
+			// Attempt to initialize the Mikan API (load MikanCore.dll)
+			if (_clientApi.Initialize(MikanLogLevel.Info) == MikanResult.Success)
+			{
 				_apiInitialized = true;
 			}
-            else
+			else
 			{
-                Log(MikanLogLevel.Error, "Failed to initialize MikanAPI");
-                return false;
-            }
+				_logger.Log(MikanLogLevel.Error, "Failed to initialize MikanAPI");
+				return false;
+			}
 
-            // Determine which graphics API is being used by Unity
-            MikanClientGraphicsApi unityGraphicsAPI = MikanClientGraphicsApi.UNKNOWN;
-            switch (SystemInfo.graphicsDeviceType)
-            {
-                case GraphicsDeviceType.Direct3D11:
-                    unityGraphicsAPI = MikanClientGraphicsApi.Direct3D11;
-                    break;
-                case GraphicsDeviceType.Direct3D12:
-                    unityGraphicsAPI = MikanClientGraphicsApi.Direct3D12;
-                    break;
-                case GraphicsDeviceType.OpenGLCore:
-                case GraphicsDeviceType.OpenGLES2:
-                case GraphicsDeviceType.OpenGLES3:
-                    unityGraphicsAPI = MikanClientGraphicsApi.OpenGL;
-                    break;
-                default:
-                    Log(MikanLogLevel.Error, $"Unsupported graphics API: {SystemInfo.graphicsDeviceType}");
-                    return false;
-            }
+			// Determine which graphics API is being used by Unity
+			MikanClientGraphicsApi unityGraphicsAPI;
+			switch (SystemInfo.graphicsDeviceType)
+			{
+			case GraphicsDeviceType.Direct3D11:
+				unityGraphicsAPI = MikanClientGraphicsApi.Direct3D11;
+				break;
+			case GraphicsDeviceType.Direct3D12:
+				unityGraphicsAPI = MikanClientGraphicsApi.Direct3D12;
+				break;
+			case GraphicsDeviceType.OpenGLCore:
+			case GraphicsDeviceType.OpenGLES2:
+			case GraphicsDeviceType.OpenGLES3:
+				unityGraphicsAPI = MikanClientGraphicsApi.OpenGL;
+				break;
+			default:
+				_logger.Log(MikanLogLevel.Error, $"Unsupported graphics API: {SystemInfo.graphicsDeviceType}");
+				return false;
+			}
 
-            // Fill out the client info struct and send it to Mikan
-            _clientInfo= new MikanClientInfo()
+			// Fill out the client info struct and send it to Mikan
+			_clientInfo = new MikanClientInfo()
 			{
 				engineName = "Unity",
 				engineVersion = Application.unityVersion,
@@ -113,51 +122,51 @@ namespace MikanXRPlugin
 			};
 
 			if (ClientAPI.SetClientInfo(_clientInfo) != MikanResult.Success)
-            {
-                Log(MikanLogLevel.Error, "Failed to set Mikan client info");
-                return false;
-            }
+			{
+				_logger.Log(MikanLogLevel.Error, "Failed to set Mikan client info");
+				return false;
+			}
 
-            return true;
-        }
+			return true;
+		}
 
-        public void DisposeClient()
-        {
-            Log(MikanLogLevel.Info, $"MikanClient DisposeClient Called");
+		public void TearDown()
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient DisposeClient Called");
 
-            if (_apiInitialized)
-            {
-                FreeRenderBuffers();
+			if (_apiInitialized)
+			{
+				FreeRenderBuffers();
 
-                ClientAPI.Shutdown();
-                Log(MikanLogLevel.Info, $"  MikanClient Shutdown Mikan API");
+				_clientApi.Shutdown();
+				_logger.Log(MikanLogLevel.Info, $"  MikanClient Shutdown Mikan API");
 
-                _apiInitialized = false;
-            }
-            else
-            {
-                Log(MikanLogLevel.Warning, $"  MikanClient Ignoring ShutdownMikan - Already shutdown.");
-            }
-        }
+				_apiInitialized = false;
+			}
+			else
+			{
+				_logger.Log(MikanLogLevel.Warning, $"  MikanClient Ignoring ShutdownMikan - Already shutdown.");
+			}
+		}
 
-        public void Update()
-        {
-            if (ClientAPI.GetIsConnected())
-            {
-                while (ClientAPI.FetchNextEvent(out MikanEvent mikanEvent) == MikanResult.Success)
-                {
-                    HandleMikanEvent(mikanEvent);
-                }
-            }
-            else
-            {
+		public void Update()
+		{
+			if (_clientApi.GetIsConnected())
+			{
+				while (_clientApi.FetchNextEvent(out MikanEvent mikanEvent) == MikanResult.Success)
+				{
+					HandleMikanEvent(mikanEvent);
+				}
+			}
+			else
+			{
 				if (_mikanReconnectTimeout <= 0f)
 				{
-                    Log(MikanLogLevel.Info, $"MikanClient: Attempting connect to {_mikanAddress}:{_mikanPort}");
+					_logger.Log(MikanLogLevel.Info, $"MikanClient: Attempting connect to {_mikanAddress}:{_mikanPort}");
 
-                    MikanResult result = ClientAPI.Connect(_mikanAddress, _mikanPort);
+					MikanResult result = _clientApi.Connect(_mikanAddress, _mikanPort);
 
-					if (result != MikanResult.Success || !ClientAPI.GetIsConnected())
+					if (result != MikanResult.Success || !_clientApi.GetIsConnected())
 					{
 						// Timeout before trying to reconnect
 						_mikanReconnectTimeout = 1f;
@@ -168,13 +177,13 @@ namespace MikanXRPlugin
 					_mikanReconnectTimeout -= Time.deltaTime;
 				}
 			}
-        }
+		}
 
-        void FreeRenderBuffers()
-        {
-            Log(MikanLogLevel.Info, $"MikanClient FreeRenderBuffers Called");
+		void FreeRenderBuffers()
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient FreeRenderBuffers Called");
 
-            ClientAPI.RenderTargetAPI.FreeRenderTargetTextures();
+			_clientApi.RenderTargetAPI.FreeRenderTargetTextures();
 
 			// Tell any dependent systems that the render buffers have been disposed
 			if (OnRenderBufferDisposed != null)
@@ -183,197 +192,192 @@ namespace MikanXRPlugin
 			}
 		}
 
-        async void ReallocateRenderBuffers()
-        {
-            Log(MikanLogLevel.Info, $"MikanClient ReallocateRenderBuffers Called");
+		async void ReallocateRenderBuffers()
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient ReallocateRenderBuffers Called");
 
-            // Clean up any previously allocated render targets
-            FreeRenderBuffers();
+			// Clean up any previously allocated render targets
+			FreeRenderBuffers();
 
-            // Fetch the video source information from Mikan
-            var response = await ClientAPI.VideoSourceAPI.GetVideoSourceIntrinsics();
-            if (response.resultCode == MikanResult.Success)
-            {
-                var intrinsics = response as MikanVideoSourceIntrinsics;
+			// Fetch the video source information from Mikan
+			var response = await _clientApi.VideoSourceAPI.GetVideoSourceIntrinsics();
+			if (response.resultCode == MikanResult.Success)
+			{
+				var intrinsics = response as MikanVideoSourceIntrinsics;
 
-                _renderTargetDescriptor = new MikanRenderTargetDescriptor();
-                _renderTargetDescriptor.width = (uint)intrinsics.mono.pixel_width;
-                _renderTargetDescriptor.height = (uint)intrinsics.mono.pixel_height;
-                _renderTargetDescriptor.color_buffer_type = MikanColorBufferType.RGBA32;
-                _renderTargetDescriptor.depth_buffer_type = MikanDepthBufferType.PACK_DEPTH_RGBA;
-                _renderTargetDescriptor.graphicsAPI = _clientInfo.graphicsAPI;
+				_renderTargetDescriptor = new MikanRenderTargetDescriptor();
+				_renderTargetDescriptor.width = (uint)intrinsics.mono.pixel_width;
+				_renderTargetDescriptor.height = (uint)intrinsics.mono.pixel_height;
+				_renderTargetDescriptor.color_buffer_type = MikanColorBufferType.RGBA32;
+				_renderTargetDescriptor.depth_buffer_type = MikanDepthBufferType.PACK_DEPTH_RGBA;
+				_renderTargetDescriptor.graphicsAPI = _clientInfo.graphicsAPI;
 
-                // Allocate any behind the scenes render target textures
-                var allocateResponse = 
-                    await ClientAPI.RenderTargetAPI.AllocateRenderTargetTextures(_renderTargetDescriptor);
-                if (allocateResponse.resultCode == MikanResult.Success)
-                {
-                    Log(MikanLogLevel.Info, "  MikanClient Allocated render target buffers");
-                }
-                else
-                {
-                    Log(MikanLogLevel.Error, "  MikanClient Failed to allocate shared memory");
-                }
+				// Allocate any behind the scenes render target textures
+				var allocateResponse =
+					await _clientApi.RenderTargetAPI.AllocateRenderTargetTextures(_renderTargetDescriptor);
+				if (allocateResponse.resultCode == MikanResult.Success)
+				{
+					_logger.Log(MikanLogLevel.Info, "  MikanClient Allocated render target buffers");
+				}
+				else
+				{
+					_logger.Log(MikanLogLevel.Error, "  MikanClient Failed to allocate shared memory");
+				}
 
-                // Tell any dependent systems that the render buffers have been created
-                if (OnRenderBufferCreated != null)
-                {
-                    OnRenderBufferCreated.Invoke();
-                }
-            }
-            else
-            {
-                Log(MikanLogLevel.Error, "MikanClient Failed to get video source mode");
-            }
-        }
+				// Tell any dependent systems that the render buffers have been created
+				if (OnRenderBufferCreated != null)
+				{
+					OnRenderBufferCreated.Invoke();
+				}
+			}
+			else
+			{
+				_logger.Log(MikanLogLevel.Error, "MikanClient Failed to get video source mode");
+			}
+		}
 
-        void HandleMikanEvent(MikanEvent inEvent)
-        {
-            Log(MikanLogLevel.Debug, $"MikanClient: Event {inEvent.eventType}");
+		void HandleMikanEvent(MikanEvent inEvent)
+		{
+			_logger.Log(MikanLogLevel.Debug, $"MikanClient: Event {inEvent.eventType}");
 
-            if (inEvent is MikanConnectedEvent)
-            {
-                HandleMikanConnected();
-            }
-            else if (inEvent is MikanDisconnectedEvent)
-            {
-                HandleMikanDisconnected();
-            }
-            else if (inEvent is MikanVideoSourceOpenedEvent)
-            {
-                ReallocateRenderBuffers();
-                HandleCameraIntrinsicsChanged();
-            }
-            else if (inEvent is MikanVideoSourceClosedEvent)
-            {
+			if (inEvent is MikanConnectedEvent)
+			{
+				HandleMikanConnected();
+			}
+			else if (inEvent is MikanDisconnectedEvent)
+			{
+				HandleMikanDisconnected();
+			}
+			else if (inEvent is MikanVideoSourceOpenedEvent)
+			{
+				ReallocateRenderBuffers();
+				HandleCameraIntrinsicsChanged();
+			}
+			else if (inEvent is MikanVideoSourceClosedEvent)
+			{
 
-            }
-            else if (inEvent is MikanVideoSourceNewFrameEvent)
-            {
-                var newFrameEvent = inEvent as MikanVideoSourceNewFrameEvent;
+			}
+			else if (inEvent is MikanVideoSourceNewFrameEvent)
+			{
+				var newFrameEvent = inEvent as MikanVideoSourceNewFrameEvent;
 
-                HandleNewVideoSourceFrame(newFrameEvent);
-            }
-            else if (inEvent is MikanVideoSourceAttachmentChangedEvent)
-            {
-                HandleCameraAttachmentChanged();
-            }
-            else if (inEvent is MikanVideoSourceIntrinsicsChangedEvent ||
-                    inEvent is MikanVideoSourceModeChangedEvent)
-            {
-                ReallocateRenderBuffers();
-                HandleCameraIntrinsicsChanged();
-            }
-            else if (inEvent is MikanVRDevicePoseUpdateEvent)
-            {
+				HandleNewVideoSourceFrame(newFrameEvent);
+			}
+			else if (inEvent is MikanVideoSourceAttachmentChangedEvent)
+			{
+				HandleCameraAttachmentChanged();
+			}
+			else if (inEvent is MikanVideoSourceIntrinsicsChangedEvent ||
+					inEvent is MikanVideoSourceModeChangedEvent)
+			{
+				ReallocateRenderBuffers();
+				HandleCameraIntrinsicsChanged();
+			}
+			else if (inEvent is MikanVRDevicePoseUpdateEvent)
+			{
 
-            }
-            else if (inEvent is MikanVRDeviceListUpdateEvent)
-            {
+			}
+			else if (inEvent is MikanVRDeviceListUpdateEvent)
+			{
 
-            }
-            else if (inEvent is MikanAnchorPoseUpdateEvent)
-            {
-                HandleAnchorPoseChanged(inEvent as MikanAnchorPoseUpdateEvent);
-            }
-            else if (inEvent is MikanAnchorListUpdateEvent)            
-            {
-                Log(MikanLogLevel.Info, "MikanAnchorListUpdateEvent event received");
-                HandleAnchorListChanged();
-            }
-            else if (inEvent is MikanScriptMessagePostedEvent)
-            {
-                HandleScriptMessage(inEvent as MikanScriptMessagePostedEvent);
-            }
-        }
+			}
+			else if (inEvent is MikanAnchorPoseUpdateEvent)
+			{
+				HandleAnchorPoseChanged(inEvent as MikanAnchorPoseUpdateEvent);
+			}
+			else if (inEvent is MikanAnchorListUpdateEvent)
+			{
+				_logger.Log(MikanLogLevel.Info, "MikanAnchorListUpdateEvent event received");
+				HandleAnchorListChanged();
+			}
+			else if (inEvent is MikanScriptMessagePostedEvent)
+			{
+				HandleScriptMessage(inEvent as MikanScriptMessagePostedEvent);
+			}
+		}
 
-        void HandleMikanConnected()
-        {
-            Log(MikanLogLevel.Info, "MikanClient Connected!");
-            ReallocateRenderBuffers();
+		void HandleMikanConnected()
+		{
+			_logger.Log(MikanLogLevel.Info, "MikanClient Connected!");
+			ReallocateRenderBuffers();
 
-            if (OnConnected != null)
-            {
-                OnConnected.Invoke();
-            }
-        }
+			if (OnConnected != null)
+			{
+				OnConnected.Invoke();
+			}
+		}
 
-        void HandleMikanDisconnected()
-        {
-            Log(MikanLogLevel.Warning, "MikanClient Disconnected!");
-            FreeRenderBuffers();
+		void HandleMikanDisconnected()
+		{
+			_logger.Log(MikanLogLevel.Warning, "MikanClient Disconnected!");
+			FreeRenderBuffers();
 
-            if (OnDisconnected != null)
-            {
-                OnDisconnected.Invoke();
-            }
-        }
+			if (OnDisconnected != null)
+			{
+				OnDisconnected.Invoke();
+			}
+		}
 
-        void HandleAnchorListChanged()
-        {
-            Log(MikanLogLevel.Info, $"MikanClient HandleAnchorListChanged called.");
+		void HandleAnchorListChanged()
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient HandleAnchorListChanged called.");
 
-            if (OnAnchorListChanged != null)
-            {
-                OnAnchorListChanged.Invoke();
-            }
-        }
+			if (OnAnchorListChanged != null)
+			{
+				OnAnchorListChanged.Invoke();
+			}
+		}
 
-        void HandleAnchorPoseChanged(MikanAnchorPoseUpdateEvent AnchorPoseEvent)
-        {
-            Log(MikanLogLevel.Info, $"MikanClient HandleAnchorPoseChanged called for Anchor ID {AnchorPoseEvent.anchor_id}.");
+		void HandleAnchorPoseChanged(MikanAnchorPoseUpdateEvent AnchorPoseEvent)
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient HandleAnchorPoseChanged called for Anchor ID {AnchorPoseEvent.anchor_id}.");
 
-            if (OnAnchorPoseChanged != null)
-            {
-                OnAnchorPoseChanged.Invoke(AnchorPoseEvent);
-            }
-        }
+			if (OnAnchorPoseChanged != null)
+			{
+				OnAnchorPoseChanged.Invoke(AnchorPoseEvent);
+			}
+		}
 
-        void HandleNewVideoSourceFrame(MikanVideoSourceNewFrameEvent newFrameEvent)
-        {
-            if (OnNewFrameReceived != null)
-            {
-                OnNewFrameReceived.Invoke(newFrameEvent);
-            }
-        }
+		void HandleNewVideoSourceFrame(MikanVideoSourceNewFrameEvent newFrameEvent)
+		{
+			if (OnNewFrameReceived != null)
+			{
+				OnNewFrameReceived.Invoke(newFrameEvent);
+			}
+		}
 
-        void HandleCameraIntrinsicsChanged()
-        {
-            Log(MikanLogLevel.Info, $"MikanClient HandleCameraIntrinsicsChanged called.");
+		void HandleCameraIntrinsicsChanged()
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient HandleCameraIntrinsicsChanged called.");
 
-            if (OnCameraIntrinsicsChanged != null)
-            {
-                OnCameraIntrinsicsChanged.Invoke();
-            }
-        }
+			if (OnCameraIntrinsicsChanged != null)
+			{
+				OnCameraIntrinsicsChanged.Invoke();
+			}
+		}
 
-        void HandleCameraAttachmentChanged()
-        {
-            Log(MikanLogLevel.Info, $"MikanClient HandleCameraAttachmentChanged called.");
+		void HandleCameraAttachmentChanged()
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient HandleCameraAttachmentChanged called.");
 
-            if (OnCameraAttachmentChanged != null)
-            {
+			if (OnCameraAttachmentChanged != null)
+			{
 				OnCameraAttachmentChanged.Invoke();
 			}
-        }
+		}
 
-        void HandleScriptMessage(MikanScriptMessagePostedEvent MessageEvent)
-        {
-            Log(MikanLogLevel.Info, $"MikanClient HandleScriptMessage called (message={MessageEvent.message}).");
-
-            OnScriptMessage?.Invoke(MessageEvent.message);
-        }
-
-        public void SendMikanMessage(string MessageString)
-        {
-            Log(MikanLogLevel.Info, $"MikanClient SendMikanMessage called (message={MessageString}).");
-
-            ClientAPI.ScriptAPI.SendScriptMessage(MessageString);
-        }
-
-		protected void Log(MikanLogLevel logLevel, string message)
+		void HandleScriptMessage(MikanScriptMessagePostedEvent MessageEvent)
 		{
-		    ClientAPI.CoreAPI.Logger.Log(logLevel, message);
+			_logger.Log(MikanLogLevel.Info, $"MikanClient HandleScriptMessage called (message={MessageEvent.message}).");
+
+			OnScriptMessage?.Invoke(MessageEvent.message);
+		}
+
+		public void SendMikanMessage(string MessageString)
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient SendMikanMessage called (message={MessageString}).");
+
+			ClientAPI.ScriptAPI.SendScriptMessage(MessageString);
 		}
 	}
 }
