@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 6441498824964468925}
   - component: {fileID: 8979355746524110672}
   - component: {fileID: 8078673870457028147}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Scroll View
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -119,7 +119,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3474046322164356809}
   - component: {fileID: 8684626301442668994}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: MikanWindowPrefab
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -170,7 +170,7 @@ GameObject:
   - component: {fileID: 7954225626731501684}
   - component: {fileID: 5495098469613752452}
   - component: {fileID: 7618831497829909466}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Handle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -245,7 +245,7 @@ GameObject:
   - component: {fileID: 4946078934320648753}
   - component: {fileID: 5190928150937575573}
   - component: {fileID: 7961901986051858354}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Status Indicator
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -324,7 +324,7 @@ GameObject:
   - component: {fileID: 7651187888345607508}
   - component: {fileID: 3251381965636490638}
   - component: {fileID: 5382205990331655904}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Text
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -404,7 +404,7 @@ GameObject:
   - component: {fileID: 1241044614651384906}
   - component: {fileID: 5771163565611822068}
   - component: {fileID: 4973257084391245142}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Scrollbar Horizontal
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -530,7 +530,7 @@ GameObject:
   - component: {fileID: 8233577954739781851}
   - component: {fileID: 1366368655287376831}
   - component: {fileID: 1576139699566671222}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: CloseButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -651,7 +651,7 @@ GameObject:
   - component: {fileID: 1528947230868726643}
   - component: {fileID: 7883590033371956502}
   - component: {fileID: 8044748481389884002}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Viewport
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -741,7 +741,7 @@ GameObject:
   - component: {fileID: 2291730550708355750}
   - component: {fileID: 2862106584493425315}
   - component: {fileID: 3986570970534651283}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: CameraPositionScaleField
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -881,7 +881,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3304950753896551791}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: StatusControls
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -921,7 +921,7 @@ GameObject:
   - component: {fileID: 8601984946919406639}
   - component: {fileID: 833862901855758665}
   - component: {fileID: 6772015416606879306}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Status Label
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1000,7 +1000,7 @@ GameObject:
   - component: {fileID: 7401648137273698052}
   - component: {fileID: 3131394977734696962}
   - component: {fileID: 7732252018775835374}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: VersionText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1079,7 +1079,7 @@ GameObject:
   - component: {fileID: 7547008108659105369}
   - component: {fileID: 2598192105320867738}
   - component: {fileID: 4375567696984155393}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Panel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1159,7 +1159,7 @@ GameObject:
   - component: {fileID: 1412512579310613069}
   - component: {fileID: 8188701445720470966}
   - component: {fileID: 773224504915396247}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Scrollbar Vertical
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1284,7 +1284,7 @@ GameObject:
   - component: {fileID: 5126455560895702735}
   - component: {fileID: 4342041366434878920}
   - component: {fileID: 5001914682468174636}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Content
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1363,7 +1363,7 @@ GameObject:
   - component: {fileID: 7733883601075831160}
   - component: {fileID: 7453615991159788701}
   - component: {fileID: 931241384792816703}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: CameraPositionScaleLabel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1440,7 +1440,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8726952716209392230}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: SceneControls
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1479,7 +1479,7 @@ GameObject:
   - component: {fileID: 742497478248149296}
   - component: {fileID: 1844355255467163119}
   - component: {fileID: 2672288205323244207}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: TitleBar
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1554,7 +1554,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6130999741133565766}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Sliding Area
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1592,7 +1592,7 @@ GameObject:
   - component: {fileID: 5219905146512590387}
   - component: {fileID: 7813871233307009410}
   - component: {fileID: 7167171356535522915}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Placeholder
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1671,7 +1671,7 @@ GameObject:
   - component: {fileID: 4293204543668098413}
   - component: {fileID: 9157608603791017569}
   - component: {fileID: 1419999083961550904}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: TitleText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1750,7 +1750,7 @@ GameObject:
   - component: {fileID: 5422511951608984182}
   - component: {fileID: 5138917431784786015}
   - component: {fileID: 2096905523656966305}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Text
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1827,7 +1827,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5228725958956266933}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Sliding Area
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1865,7 +1865,7 @@ GameObject:
   - component: {fileID: 875981988896714534}
   - component: {fileID: 3444011900384993105}
   - component: {fileID: 5235800646827440094}
-  m_Layer: 0
+  m_Layer: 5
   m_Name: Handle
   m_TagString: Untagged
   m_Icon: {fileID: 0}

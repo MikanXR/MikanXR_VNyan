@@ -20,9 +20,17 @@ namespace MikanXRPlugin
 
 		private float _cameraPositionScale = 1f;
 
-		// The table of scene anchors currently active in the scene
+		// The table of anchors currently active in the scene
 		private Dictionary<MikanSpatialAnchorID, MikanAnchor> _sceneAnchors
 			= new Dictionary<MikanSpatialAnchorID, MikanAnchor>();
+
+		// Tables of each kind of stencil currently active in the scene
+		private Dictionary<MikanStencilID, MikanStencil> _sceneQuadStencils
+			= new Dictionary<MikanStencilID, MikanStencil>();
+		private Dictionary<MikanStencilID, MikanStencil> _sceneBoxStencils
+			= new Dictionary<MikanStencilID, MikanStencil>();
+		private Dictionary<MikanStencilID, MikanStencil> _sceneModelStencils
+			= new Dictionary<MikanStencilID, MikanStencil>();
 
 		public Color BackgroundColorKey = new Color(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -97,6 +105,10 @@ namespace MikanXRPlugin
 			client.OnRenderBufferDisposed.AddListener(HandleRenderBufferDisposed);
 			client.OnAnchorListChanged.AddListener(HandleAnchorListChanged);
 			client.OnAnchorPoseChanged.AddListener(HandleAnchorPoseChanged);
+			client.OnQuadStencilListChanged.AddListener(HandleQuadStencilListChanged);
+			client.OnBoxStencilListChanged.AddListener(HandleBoxStencilListChanged);
+			client.OnModelStencilListChanged.AddListener(HandleModelStencilListChanged);
+			client.OnStencilPoseChanged.AddListener(HandleStencilPoseChanged);
 			client.OnNewFrameReceived.AddListener(HandleNewVideoSourceFrame);
 		}
 
@@ -108,6 +120,10 @@ namespace MikanXRPlugin
 			client.OnRenderBufferDisposed.RemoveListener(HandleRenderBufferDisposed);
 			client.OnAnchorListChanged.RemoveListener(HandleAnchorListChanged);
 			client.OnAnchorPoseChanged.RemoveListener(HandleAnchorPoseChanged);
+			client.OnQuadStencilListChanged.RemoveListener(HandleQuadStencilListChanged);
+			client.OnBoxStencilListChanged.RemoveListener(HandleBoxStencilListChanged);
+			client.OnModelStencilListChanged.RemoveListener(HandleModelStencilListChanged);
+			client.OnStencilPoseChanged.RemoveListener(HandleStencilPoseChanged);
 			client.OnNewFrameReceived.RemoveListener(HandleNewVideoSourceFrame);
 		}
 
@@ -256,6 +272,157 @@ namespace MikanXRPlugin
 			if (anchor != null)
 			{
 				anchor.HandleAnchorPoseChanged(AnchorPoseEvent);
+			}
+		}
+
+		public async void HandleQuadStencilListChanged()
+		{
+			MikanResponse listResponse = await _client.ClientAPI.StencilAPI.getQuadStencilList();
+			if (listResponse.resultCode == MikanResult.Success)
+			{
+				var stencilList = listResponse as MikanStencilList;
+
+				// Destroy any Quad Stencils that are no longer in the scene
+				foreach (var kvp in _sceneQuadStencils)
+				{
+					MikanStencilID StencilID = kvp.Key;
+					MikanStencil Stencil = kvp.Value;
+
+					if (!stencilList.stencil_id_list.Contains(StencilID))
+					{
+						Destroy(Stencil.gameObject);
+					}
+				}
+
+				// Update any existing Quad Stencils or spawn new ones
+				foreach (var StencilID in stencilList.stencil_id_list)
+				{
+					MikanResponse StencilResponse = await _client.ClientAPI.StencilAPI.getQuadStencil(StencilID);
+					if (StencilResponse.resultCode == MikanResult.Success)
+					{
+						var StencilInfo = StencilResponse as MikanStencilQuad;
+
+						if (_sceneQuadStencils.TryGetValue(StencilID, out MikanStencil stencil))
+						{
+							stencil.ApplyQuadStencilInfo(StencilInfo);
+						}
+						else
+						{
+							_sceneQuadStencils.Add(StencilID, MikanStencil.SpawnQuadStencil(this, StencilInfo));
+						}
+					}
+				}
+			}
+		}
+
+		public async void HandleBoxStencilListChanged()
+		{
+			MikanResponse listResponse = await _client.ClientAPI.StencilAPI.getBoxStencilList();
+			if (listResponse.resultCode == MikanResult.Success)
+			{
+				var stencilList = listResponse as MikanStencilList;
+
+				// Destroy any Box Stencils that are no longer in the scene
+				foreach (var kvp in _sceneBoxStencils)
+				{
+					MikanStencilID StencilID = kvp.Key;
+					MikanStencil Stencil = kvp.Value;
+
+					if (!stencilList.stencil_id_list.Contains(StencilID))
+					{
+						Destroy(Stencil.gameObject);
+					}
+				}
+
+				// Update any existing Box Stencils or spawn new ones
+				foreach (var StencilID in stencilList.stencil_id_list)
+				{
+					MikanResponse StencilResponse = await _client.ClientAPI.StencilAPI.getBoxStencil(StencilID);
+					if (StencilResponse.resultCode == MikanResult.Success)
+					{
+						var StencilInfo = StencilResponse as MikanStencilBox;
+
+						if (_sceneBoxStencils.TryGetValue(StencilID, out MikanStencil stencil))
+						{
+							stencil.ApplyBoxStencilInfo(StencilInfo);
+						}
+						else
+						{
+							_sceneBoxStencils.Add(StencilID, MikanStencil.SpawnBoxStencil(this, StencilInfo));
+						}
+					}
+				}
+			}
+		}
+
+		public async void HandleModelStencilListChanged()
+		{
+			MikanResponse listResponse = await _client.ClientAPI.StencilAPI.getModelStencilList();
+			if (listResponse.resultCode == MikanResult.Success)
+			{
+				var stencilList = listResponse as MikanStencilList;
+
+				// Destroy any Model Stencils that are no longer in the scene
+				foreach (var kvp in _sceneModelStencils)
+				{
+					MikanStencilID StencilID = kvp.Key;
+					MikanStencil Stencil = kvp.Value;
+
+					if (!stencilList.stencil_id_list.Contains(StencilID))
+					{
+						Destroy(Stencil.gameObject);
+					}
+				}
+
+				// Update any existing Model Stencils or spawn new ones
+				foreach (var StencilID in stencilList.stencil_id_list)
+				{
+					MikanResponse StencilResponse = await _client.ClientAPI.StencilAPI.getModelStencil(StencilID);
+					if (StencilResponse.resultCode == MikanResult.Success)
+					{
+						var StencilInfo = StencilResponse as MikanStencilModel;
+
+						if (_sceneModelStencils.TryGetValue(StencilID, out MikanStencil stencil))
+						{
+							stencil.ApplyModelStencilInfo(StencilInfo);
+						}
+						else
+						{
+							_sceneModelStencils.Add(StencilID, MikanStencil.SpawnModelStencil(this, StencilInfo));
+						}
+					}
+				}
+			}
+		}
+
+		public MikanStencil GetMikanStencilById(MikanStencilID stencilId)
+		{
+			MikanStencil stencil;
+
+			if (_sceneModelStencils.TryGetValue(stencilId, out stencil))
+			{
+				return stencil;
+			}
+
+			if (_sceneBoxStencils.TryGetValue(stencilId, out stencil))
+			{
+				return stencil;
+			}
+
+			if (_sceneQuadStencils.TryGetValue(stencilId, out stencil))
+			{
+				return stencil;
+			}
+
+			return null;
+		}
+
+		public void HandleStencilPoseChanged(MikanStencilPoseUpdateEvent StencilPoseEvent)
+		{
+			MikanStencil Stencil = GetMikanStencilById(StencilPoseEvent.stencil_id);
+			if (Stencil != null)
+			{
+				Stencil.HandleStencilPoseChanged(StencilPoseEvent);
 			}
 		}
 

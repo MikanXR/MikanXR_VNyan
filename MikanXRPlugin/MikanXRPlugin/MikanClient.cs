@@ -58,6 +58,10 @@ namespace MikanXRPlugin
 		public UnityEvent OnRenderBufferDisposed = new UnityEvent();
 		public UnityEvent OnAnchorListChanged = new UnityEvent();
 		public UnityEvent<MikanAnchorPoseUpdateEvent> OnAnchorPoseChanged = new UnityEvent<MikanAnchorPoseUpdateEvent>();
+		public UnityEvent OnQuadStencilListChanged = new UnityEvent();
+		public UnityEvent OnBoxStencilListChanged = new UnityEvent();
+		public UnityEvent OnModelStencilListChanged = new UnityEvent();
+		public UnityEvent<MikanStencilPoseUpdateEvent> OnStencilPoseChanged = new UnityEvent<MikanStencilPoseUpdateEvent>();
 		public UnityEvent<MikanVideoSourceNewFrameEvent> OnNewFrameReceived = new UnityEvent<MikanVideoSourceNewFrameEvent>();
 		public UnityEvent OnCameraIntrinsicsChanged = new UnityEvent();
 		public UnityEvent OnCameraAttachmentChanged = new UnityEvent();
@@ -290,6 +294,25 @@ namespace MikanXRPlugin
 				_logger.Log(MikanLogLevel.Info, "MikanAnchorListUpdateEvent event received");
 				HandleAnchorListChanged();
 			}
+			else if (inEvent is MikanStencilPoseUpdateEvent)
+			{
+				HandleStencilPoseChanged(inEvent as MikanStencilPoseUpdateEvent);
+			}
+			else if (inEvent is MikanQuadStencilListUpdateEvent)
+			{
+				_logger.Log(MikanLogLevel.Info, "MikanQuadStencilListUpdateEvent event received");
+				HandleQuadStencilListChanged();
+			}
+			else if (inEvent is MikanBoxStencilListUpdateEvent)
+			{
+				_logger.Log(MikanLogLevel.Info, "MikanBoxStencilListUpdateEvent event received");
+				HandleBoxStencilListChanged();
+			}
+			else if (inEvent is MikanModelStencilListUpdateEvent)
+			{
+				_logger.Log(MikanLogLevel.Info, "MikanModelStencilListUpdateEvent event received");
+				HandleModelStencilListChanged();
+			}
 			else if (inEvent is MikanScriptMessagePostedEvent)
 			{
 				HandleScriptMessage(inEvent as MikanScriptMessagePostedEvent);
@@ -335,6 +358,46 @@ namespace MikanXRPlugin
 			if (OnAnchorPoseChanged != null)
 			{
 				OnAnchorPoseChanged.Invoke(AnchorPoseEvent);
+			}
+		}
+
+		void HandleQuadStencilListChanged()
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient HandleQuadStencilListChanged called.");
+
+			if (OnQuadStencilListChanged != null)
+			{
+				OnQuadStencilListChanged.Invoke();
+			}
+		}
+
+		void HandleBoxStencilListChanged()
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient HandleBoxStencilListChanged called.");
+
+			if (OnBoxStencilListChanged != null)
+			{
+				OnBoxStencilListChanged.Invoke();
+			}
+		}
+
+		void HandleModelStencilListChanged()
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient HandleModelStencilListChanged called.");
+
+			if (OnModelStencilListChanged != null)
+			{
+				OnModelStencilListChanged.Invoke();
+			}
+		}
+
+		void HandleStencilPoseChanged(MikanStencilPoseUpdateEvent StencilPoseEvent)
+		{
+			_logger.Log(MikanLogLevel.Info, $"MikanClient HandleStencilPoseChanged called for Stencil ID {StencilPoseEvent.Stencil_id}.");
+
+			if (OnStencilPoseChanged != null)
+			{
+				OnStencilPoseChanged.Invoke(StencilPoseEvent);
 			}
 		}
 

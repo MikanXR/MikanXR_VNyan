@@ -12,7 +12,7 @@ namespace MikanXRPlugin
 
 		public GameObject windowPrefab;
 		public GameObject anchorPrefab;
-		public GameObject stencilModelPrefab;
+		public GameObject stencilPrefab;
 
 		private MikanSettingsWindow _settingsWindow;
 
