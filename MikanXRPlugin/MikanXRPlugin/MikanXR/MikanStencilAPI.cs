@@ -10,9 +10,9 @@ namespace MikanXR
 		{
 			_requestManager= requestManager;
 			_requestManager.AddTextResponseFactory<MikanStencilList>();
-			_requestManager.AddTextResponseFactory<MikanStencilQuad>();
-			_requestManager.AddTextResponseFactory<MikanStencilBox>();
-			_requestManager.AddTextResponseFactory<MikanStencilModel>();
+			_requestManager.AddTextResponseFactory<MikanStencilQuadInfo>();
+			_requestManager.AddTextResponseFactory<MikanStencilBoxInfo>();
+			_requestManager.AddTextResponseFactory<MikanStencilModelInfo>();
 			_requestManager.AddBinaryResponseFactory<
 				MikanStencilModeRenderGeometryFactory, 
 				MikanStencilModelRenderGeometry>();

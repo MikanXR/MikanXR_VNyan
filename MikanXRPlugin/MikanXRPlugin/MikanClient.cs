@@ -393,7 +393,8 @@ namespace MikanXRPlugin
 
 		void HandleStencilPoseChanged(MikanStencilPoseUpdateEvent StencilPoseEvent)
 		{
-			_logger.Log(MikanLogLevel.Info, $"MikanClient HandleStencilPoseChanged called for Stencil ID {StencilPoseEvent.Stencil_id}.");
+			_logger.Log(MikanLogLevel.Info, 
+				$"MikanClient HandleStencilPoseChanged called for Stencil ID {StencilPoseEvent.stencil_id}.");
 
 			if (OnStencilPoseChanged != null)
 			{

@@ -25,12 +25,12 @@ namespace MikanXRPlugin
 			= new Dictionary<MikanSpatialAnchorID, MikanAnchor>();
 
 		// Tables of each kind of stencil currently active in the scene
-		private Dictionary<MikanStencilID, MikanStencil> _sceneQuadStencils
-			= new Dictionary<MikanStencilID, MikanStencil>();
-		private Dictionary<MikanStencilID, MikanStencil> _sceneBoxStencils
-			= new Dictionary<MikanStencilID, MikanStencil>();
-		private Dictionary<MikanStencilID, MikanStencil> _sceneModelStencils
-			= new Dictionary<MikanStencilID, MikanStencil>();
+		private Dictionary<MikanStencilID, MikanQuadStencil> _sceneQuadStencils
+			= new Dictionary<MikanStencilID, MikanQuadStencil>();
+		private Dictionary<MikanStencilID, MikanBoxStencil> _sceneBoxStencils
+			= new Dictionary<MikanStencilID, MikanBoxStencil>();
+		private Dictionary<MikanStencilID, MikanModelStencil> _sceneModelStencils
+			= new Dictionary<MikanStencilID, MikanModelStencil>();
 
 		public Color BackgroundColorKey = new Color(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -286,7 +286,7 @@ namespace MikanXRPlugin
 				foreach (var kvp in _sceneQuadStencils)
 				{
 					MikanStencilID StencilID = kvp.Key;
-					MikanStencil Stencil = kvp.Value;
+					MikanQuadStencil Stencil = kvp.Value;
 
 					if (!stencilList.stencil_id_list.Contains(StencilID))
 					{
@@ -300,15 +300,17 @@ namespace MikanXRPlugin
 					MikanResponse StencilResponse = await _client.ClientAPI.StencilAPI.getQuadStencil(StencilID);
 					if (StencilResponse.resultCode == MikanResult.Success)
 					{
-						var StencilInfo = StencilResponse as MikanStencilQuad;
+						MikanStencilQuadInfo modelStencilInfo = StencilResponse as MikanStencilQuadInfo;
 
-						if (_sceneQuadStencils.TryGetValue(StencilID, out MikanStencil stencil))
+						if (_sceneQuadStencils.TryGetValue(StencilID, out MikanQuadStencil stencil))
 						{
-							stencil.ApplyQuadStencilInfo(StencilInfo);
+							stencil.ApplyStencilInfo(modelStencilInfo);
 						}
 						else
 						{
-							_sceneQuadStencils.Add(StencilID, MikanStencil.SpawnQuadStencil(this, StencilInfo));
+							_sceneQuadStencils.Add(
+								StencilID, 
+								MikanQuadStencil.SpawnStencil(this, modelStencilInfo));
 						}
 					}
 				}
@@ -340,15 +342,15 @@ namespace MikanXRPlugin
 					MikanResponse StencilResponse = await _client.ClientAPI.StencilAPI.getBoxStencil(StencilID);
 					if (StencilResponse.resultCode == MikanResult.Success)
 					{
-						var StencilInfo = StencilResponse as MikanStencilBox;
+						var StencilInfo = StencilResponse as MikanStencilBoxInfo;
 
-						if (_sceneBoxStencils.TryGetValue(StencilID, out MikanStencil stencil))
+						if (_sceneBoxStencils.TryGetValue(StencilID, out MikanBoxStencil stencil))
 						{
 							stencil.ApplyBoxStencilInfo(StencilInfo);
 						}
 						else
 						{
-							_sceneBoxStencils.Add(StencilID, MikanStencil.SpawnBoxStencil(this, StencilInfo));
+							_sceneBoxStencils.Add(StencilID, MikanBoxStencil.SpawnStencil(this, StencilInfo));
 						}
 					}
 				}
@@ -380,15 +382,15 @@ namespace MikanXRPlugin
 					MikanResponse StencilResponse = await _client.ClientAPI.StencilAPI.getModelStencil(StencilID);
 					if (StencilResponse.resultCode == MikanResult.Success)
 					{
-						var StencilInfo = StencilResponse as MikanStencilModel;
+						var StencilInfo = StencilResponse as MikanStencilModelInfo;
 
-						if (_sceneModelStencils.TryGetValue(StencilID, out MikanStencil stencil))
+						if (_sceneModelStencils.TryGetValue(StencilID, out MikanModelStencil stencil))
 						{
 							stencil.ApplyModelStencilInfo(StencilInfo);
 						}
 						else
 						{
-							_sceneModelStencils.Add(StencilID, MikanStencil.SpawnModelStencil(this, StencilInfo));
+							_sceneModelStencils.Add(StencilID, MikanModelStencil.SpawnStencil(this, StencilInfo));
 						}
 					}
 				}
@@ -397,21 +399,19 @@ namespace MikanXRPlugin
 
 		public MikanStencil GetMikanStencilById(MikanStencilID stencilId)
 		{
-			MikanStencil stencil;
-
-			if (_sceneModelStencils.TryGetValue(stencilId, out stencil))
+			if (_sceneModelStencils.TryGetValue(stencilId, out MikanModelStencil modelStencil))
 			{
-				return stencil;
+				return modelStencil;
 			}
 
-			if (_sceneBoxStencils.TryGetValue(stencilId, out stencil))
+			if (_sceneBoxStencils.TryGetValue(stencilId, out MikanBoxStencil boxStencil))
 			{
-				return stencil;
+				return boxStencil;
 			}
 
-			if (_sceneQuadStencils.TryGetValue(stencilId, out stencil))
+			if (_sceneQuadStencils.TryGetValue(stencilId, out MikanQuadStencil quadStencil))
 			{
-				return stencil;
+				return quadStencil;
 			}
 
 			return null;
