@@ -193,6 +193,9 @@ namespace MikanXRPlugin
 		{
 			HandleCameraIntrinsicsChanged();
 			HandleAnchorListChanged();
+			HandleQuadStencilListChanged();
+			HandleBoxStencilListChanged();
+			HandleModelStencilListChanged();
 		}
 
 		protected void HandleMikanDisconnected()
@@ -379,18 +382,36 @@ namespace MikanXRPlugin
 				// Update any existing Model Stencils or spawn new ones
 				foreach (var StencilID in stencilList.stencil_id_list)
 				{
+					// Update or create core stencil object
 					MikanResponse StencilResponse = await _client.ClientAPI.StencilAPI.getModelStencil(StencilID);
 					if (StencilResponse.resultCode == MikanResult.Success)
 					{
 						var StencilInfo = StencilResponse as MikanStencilModelInfo;
 
-						if (_sceneModelStencils.TryGetValue(StencilID, out MikanModelStencil stencil))
+						if (_sceneModelStencils.TryGetValue(StencilID, out MikanModelStencil modelStencil))
 						{
-							stencil.ApplyModelStencilInfo(StencilInfo);
+							// Update existing stencil info
+							modelStencil.ApplyModelStencilInfo(StencilInfo);
 						}
 						else
 						{
-							_sceneModelStencils.Add(StencilID, MikanModelStencil.SpawnStencil(this, StencilInfo));
+							// Spawn in a new stencil
+							modelStencil= MikanModelStencil.SpawnStencil(this, StencilInfo);
+
+							if (modelStencil != null)
+							{
+								_sceneModelStencils.Add(StencilID, modelStencil);
+
+								// Fetch the meshes for the stencil
+								MikanResponse MeshResponse = 
+									await _client.ClientAPI.StencilAPI.getModelStencilRenderGeometry(StencilID);
+								if (MeshResponse.resultCode == MikanResult.Success)
+								{
+									var modelGeo = MeshResponse as MikanStencilModelRenderGeometry;
+
+									modelStencil.ApplyModelRenderGeometry(modelGeo);
+								}
+							}
 						}
 					}
 				}

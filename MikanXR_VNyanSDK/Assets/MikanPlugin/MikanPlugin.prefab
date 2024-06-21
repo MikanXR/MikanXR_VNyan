@@ -44,4 +44,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rgbPackShader: {fileID: 4800000, guid: 5c078c35f76fb1e48aec81f0fa3868a3, type: 3}
+  modelStencilMaterial: {fileID: 2100000, guid: 2f59b6395ff5b904d8c70d162d4f735f, type: 2}
   windowPrefab: {fileID: 1324328309371161232, guid: 71f89d6bd4fa5c744832e582e8b01362, type: 3}
+  anchorPrefab: {fileID: 0}
+  stencilPrefab: {fileID: 0}

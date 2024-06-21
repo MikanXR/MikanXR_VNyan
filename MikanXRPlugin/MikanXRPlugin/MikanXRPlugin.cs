@@ -9,6 +9,7 @@ namespace MikanXRPlugin
 	public class MikanXRPlugin : MonoBehaviour, VNyanInterface.IButtonClickedHandler
 	{
 		public Shader rgbPackShader;
+		public Material modelStencilMaterial;
 
 		public GameObject windowPrefab;
 		public GameObject anchorPrefab;

@@ -111,6 +111,7 @@ namespace MikanXR
 				as MikanStencilModelRenderGeometry;
 
 			int meshCount= inReader.ReadInt32();
+			response.meshes= new MikanTriagulatedMesh[meshCount];
 			for (int i= 0; i < meshCount; i++)
 			{
 				var mesh= new MikanTriagulatedMesh();
