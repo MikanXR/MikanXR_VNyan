@@ -30,18 +30,96 @@ namespace MikanXRPlugin
 		{
 			gameObject.GetComponent<RectTransform>().anchoredPosition = new Vector2(0, 0);
 
-			InputField CameraPositionScaleInput =
-				gameObject.transform.Find("Panel/SceneControls/CameraPositionScaleField").GetComponent<InputField>();
-			CameraPositionScaleInput?.onValueChanged.AddListener((v) =>
+			// Scene Position
+			InputField SceneXPosInput =
+				gameObject.transform.Find("Panel/SceneControls/ScenePosition/SceneXPosField").GetComponent<InputField>();
+			InputField SceneYPosInput =
+				gameObject.transform.Find("Panel/SceneControls/ScenePosition/SceneYPosField").GetComponent<InputField>();
+			InputField SceneZPosInput =
+				gameObject.transform.Find("Panel/SceneControls/ScenePosition/SceneZPosField").GetComponent<InputField>();
+			SceneXPosInput?.onValueChanged.AddListener((v) =>
+			{
+				if (float.TryParse(v, out float newValue))
+				{
+					var newPos = _settings.ScenePosition;
+					newPos.x = newValue;
+					_settings.ScenePosition = newPos;
+				}
+			});
+			SceneYPosInput?.onValueChanged.AddListener((v) =>
+			{
+				if (float.TryParse(v, out float newValue))
+				{
+					var newPos = _settings.ScenePosition;
+					newPos.y = newValue;
+					_settings.ScenePosition = newPos;
+				}
+			});
+			SceneZPosInput?.onValueChanged.AddListener((v) =>
+			{
+				if (float.TryParse(v, out float newValue))
+				{
+					var newPos = _settings.ScenePosition;
+					newPos.z = newValue;
+					_settings.ScenePosition = newPos;
+				}
+			});
+			SceneXPosInput?.SetTextWithoutNotify(_settings.ScenePosition.x.ToString());
+			SceneYPosInput?.SetTextWithoutNotify(_settings.ScenePosition.y.ToString());
+			SceneZPosInput?.SetTextWithoutNotify(_settings.ScenePosition.z.ToString());
+
+			// Scene Orientation
+			InputField SceneXAngleInput =
+				gameObject.transform.Find("Panel/SceneControls/SceneRotation/SceneXAngleField").GetComponent<InputField>();
+			InputField SceneYAngleInput =
+				gameObject.transform.Find("Panel/SceneControls/SceneRotation/SceneYAngleField").GetComponent<InputField>();
+			InputField SceneZAngleInput =
+				gameObject.transform.Find("Panel/SceneControls/SceneRotation/SceneZAngleField").GetComponent<InputField>();
+			SceneXAngleInput?.onValueChanged.AddListener((v) =>
+			{
+				if (float.TryParse(v, out float newValue))
+				{
+					var newAngle = _settings.SceneEulerAngles;
+					newAngle.x = newValue;
+					_settings.SceneEulerAngles = newAngle;
+				}
+			});
+			SceneYAngleInput?.onValueChanged.AddListener((v) =>
+			{
+				if (float.TryParse(v, out float newValue))
+				{
+					var newAngle = _settings.SceneEulerAngles;
+					newAngle.y = newValue;
+					_settings.SceneEulerAngles = newAngle;
+				}
+			});
+			SceneZAngleInput?.onValueChanged.AddListener((v) =>
+			{
+				if (float.TryParse(v, out float newValue))
+				{
+					var newAngle = _settings.SceneEulerAngles;
+					newAngle.z = newValue;
+					_settings.SceneEulerAngles = newAngle;
+				}
+			});
+			SceneXAngleInput?.SetTextWithoutNotify(_settings.SceneEulerAngles.x.ToString());
+			SceneYAngleInput?.SetTextWithoutNotify(_settings.SceneEulerAngles.y.ToString());
+			SceneZAngleInput?.SetTextWithoutNotify(_settings.SceneEulerAngles.z.ToString());
+
+			// Scene Scale
+			InputField SceneScaleInput =
+				gameObject.transform.Find("Panel/SceneControls/SceneScale/SceneScaleField").GetComponent<InputField>();
+			SceneScaleInput?.onValueChanged.AddListener((v) =>
 			{
 				if (float.TryParse(v, out float newScale))
 				{
-					_settings.CameraPositionScale = newScale;
+					_settings.SceneScale = newScale;
 				}
 			});
-			CameraPositionScaleInput?.SetTextWithoutNotify(_settings.CameraPositionScale.ToString());
+			SceneScaleInput?.SetTextWithoutNotify(_settings.SceneScale.ToString());
 
-			_statusText = gameObject.transform.Find("Panel/StatusControls/Status Indicator").GetComponent<Text>();
+			// Connection Status
+			_statusText = gameObject.transform.Find("Panel/StatusControls/ConnectionStatus/Status Indicator").GetComponent<Text>();
 			_logText = gameObject.transform.Find("Panel/StatusControls/Scroll View/Viewport/Content").GetComponent<Text>();
 
 			gameObject.transform.Find("Panel/TitleBar/CloseButton").GetComponent<Button>().onClick.AddListener(

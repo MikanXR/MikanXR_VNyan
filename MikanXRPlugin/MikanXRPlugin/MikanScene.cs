@@ -18,8 +18,6 @@ namespace MikanXRPlugin
 		private MikanCamera _sceneCamera = null;
 		public MikanCamera SceneCamera => _sceneCamera;
 
-		private float _cameraPositionScale = 1f;
-
 		// The table of anchors currently active in the scene
 		private Dictionary<MikanSpatialAnchorID, MikanAnchor> _sceneAnchors
 			= new Dictionary<MikanSpatialAnchorID, MikanAnchor>();
@@ -34,13 +32,16 @@ namespace MikanXRPlugin
 
 		public Color BackgroundColorKey = new Color(0.0f, 0.0f, 0.0f, 0.0f);
 
+		private static readonly float ManipulatorSize = 0.1f;
+
 		public static MikanScene SpawnScene(MikanManager ownerManager)
 		{
 			var mikanSceneObject = new GameObject(
 				"MikanSceneObject",
 				new System.Type[] {
 					typeof(MikanScene),
-					typeof(MikanScriptEventHandler)
+					typeof(MikanScriptEventHandler),
+					typeof(BoxCollider)
 				});
 
 			MikanScene sceneComponent = mikanSceneObject.GetComponent<MikanScene>();
@@ -67,6 +68,9 @@ namespace MikanXRPlugin
 
 			// Bind settings events
 			BindSettingsEvents(ownerManager.OwnerPlugin.Settings);
+
+			// Setup the scene manipulator collision
+			SetupSceneManipulatorCollision();
 
 			// Spawn the Mikan camera
 			SpawnMikanCamera();
@@ -129,12 +133,36 @@ namespace MikanXRPlugin
 
 		private void BindSettingsEvents(MikanSettings settings)
 		{
-			settings.OnCameraPositionScaleChanged.AddListener(HandleCameraPositionScaleChanged);
+			settings.OnScenePositionChanged.AddListener(HandleScenePositionChanged);
+			settings.OnSceneOrientationChanged.AddListener(HandleSceneOrientationChanged);
+			settings.OnSceneScaleChanged.AddListener(HandkeSceneScaleChanged);
 		}
 
 		private void UnbindSettingsEvents(MikanSettings settings)
 		{
-			settings.OnCameraPositionScaleChanged.RemoveListener(HandleCameraPositionScaleChanged);
+			settings.OnScenePositionChanged.RemoveListener(HandleScenePositionChanged);
+			settings.OnSceneOrientationChanged.RemoveListener(HandleSceneOrientationChanged);
+			settings.OnSceneScaleChanged.RemoveListener(HandkeSceneScaleChanged);
+		}
+
+		void SetupSceneManipulatorCollision()
+		{
+			BoxCollider sceneCollider = GetComponent<BoxCollider>();
+			if (sceneCollider == null)
+			{
+				sceneCollider = gameObject.AddComponent<BoxCollider>();
+			}
+			sceneCollider.size = new Vector3(ManipulatorSize, ManipulatorSize, ManipulatorSize);
+
+			TextMesh sceneText = GetComponent<TextMesh>();
+			if (sceneText == null)
+			{
+				sceneText= gameObject.AddComponent<TextMesh>();
+			}
+			sceneText.text = "Mikan Scene";
+			sceneText.characterSize = 0.1f;
+			sceneText.anchor = TextAnchor.MiddleCenter;
+			sceneText.alignment = TextAlignment.Center;
 		}
 
 		void SpawnMikanCamera()
@@ -455,9 +483,19 @@ namespace MikanXRPlugin
 			}
 		}
 
-		public void HandleCameraPositionScaleChanged(float newScale)
+		private void HandleScenePositionChanged(Vector3 newPosition)
 		{
-			_cameraPositionScale = newScale;
+			this.transform.localPosition = newPosition;
+		}
+
+		private void HandleSceneOrientationChanged(Vector3 newOrientation)
+		{
+			this.transform.localRotation = Quaternion.Euler(newOrientation);
+		}
+
+		private void HandkeSceneScaleChanged(float newScale)
+		{
+			this.transform.localScale = new Vector3(newScale, newScale, newScale);
 		}
 
 		public void HandleNewVideoSourceFrame(MikanVideoSourceNewFrameEvent newFrameEvent)
@@ -473,7 +511,7 @@ namespace MikanXRPlugin
 
 				// Update the camera's transform relative to the parent scene
 				_sceneCamera.transform.localPosition =
-					MikanMath.ExtractTranslationFromMatrix(sceneCameraTransform) * _cameraPositionScale;
+					MikanMath.ExtractTranslationFromMatrix(sceneCameraTransform);
 				_sceneCamera.transform.localRotation =
 					MikanMath.ExtractRotationFromMatrix(sceneCameraTransform);
 
