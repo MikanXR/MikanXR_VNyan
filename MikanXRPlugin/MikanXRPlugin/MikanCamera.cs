@@ -230,6 +230,9 @@ namespace MikanXRPlugin
 				_xrCamera.clearFlags = CameraClearFlags.SolidColor;
 				_xrCamera.forceIntoRenderTexture = true;
 
+				// Disable the camera so that we can drive manual rendering
+				_xrCamera.enabled = false;
+
 				// Don't render anything on the UI layer
 				_xrCamera.cullingMask = _xrCamera.cullingMask &= ~(1 << LayerMask.NameToLayer("UI"));
 			}
@@ -296,9 +299,6 @@ namespace MikanXRPlugin
 						_xrCamera.depthTextureMode = DepthTextureMode.Depth;
 						_xrCamera.clearFlags = CameraClearFlags.SolidColor;
 						_xrCamera.backgroundColor = Color.clear;
-
-						// Disable the camera so that we can drive manual rendering
-						_xrCamera.enabled = false;
 
 						// Update frustum geometry
 						_hfovRadians = (float)monoIntrinsics.hfov * Mathf.Deg2Rad;
