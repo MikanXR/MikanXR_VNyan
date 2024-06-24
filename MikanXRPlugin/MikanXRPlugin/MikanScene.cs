@@ -63,6 +63,10 @@ namespace MikanXRPlugin
 			_client = ownerManager.MikanClient;
 			_logger = _client.ClientAPI.CoreAPI.Logger;
 
+			// Make sure all scene objects are on the UI layer
+			// so they don't render in the XR camera
+			gameObject.layer = LayerMask.NameToLayer("UI");
+
 			// Bind client events
 			BindClientEvents(_client);
 
