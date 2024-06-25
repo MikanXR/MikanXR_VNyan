@@ -91,12 +91,12 @@ namespace MikanXRPlugin
 
 		public static Quaternion MikanQuatfToQuaternion(MikanQuatf q)
 		{
-			return new Quaternion() { x = q.x, y = q.y, z = -q.z, w = q.w };
+			return new Quaternion() { x = -q.x, y = -q.y, z = q.z, w = q.w };
 		}
 
 		public static MikanQuatf MikanQuatfToQuaternion(Quaternion q)
 		{
-			return new MikanQuatf() { x = q.x, y = q.y, z = -q.z, w = q.w };
+			return new MikanQuatf() { x = -q.x, y = -q.y, z = q.z, w = q.w };
 		}
 
 		public static Vector3 MikanScaleVector3fToVector3(MikanVector3f v)
