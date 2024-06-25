@@ -145,10 +145,20 @@ namespace MikanXRPlugin
 				uv[texelIndex] = MikanMath.MikanVector2fToVector2(mikanMeshData.texels[texelIndex]);
 			}
 
+			int indexCount = mikanMeshData.indices.Length;
+			var indices = new int[indexCount];
+			for (int indexIndex = 0; indexIndex < indexCount; indexIndex+=3)
+			{
+				// Flip the winding order of the triangles
+				indices[indexIndex+2] = mikanMeshData.indices[indexIndex+0];
+				indices[indexIndex+1] = mikanMeshData.indices[indexIndex+1];
+				indices[indexIndex+0] = mikanMeshData.indices[indexIndex+2];
+			}
+
 			mesh.vertices = vertices;
 			mesh.normals = normals;
 			mesh.uv = uv;
-			mesh.triangles = mikanMeshData.indices;
+			mesh.triangles = indices;
 			if (normalCount == 0)
 			{
 				mesh.RecalculateNormals();
