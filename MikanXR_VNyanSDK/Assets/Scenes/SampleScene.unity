@@ -267,8 +267,8 @@ Camera:
     y: 0
     width: 1
     height: 1
-  near clip plane: 0.3
-  far clip plane: 1000
+  near clip plane: 0.01
+  far clip plane: 20
   field of view: 60
   orthographic: 0
   orthographic size: 5
@@ -313,8 +313,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5854b9cd78504f843b5b278f3a89be38, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  acceleration: 50
-  accSprintMultiplier: 4
+  acceleration: 10
+  accSprintMultiplier: 1
   lookSensitivity: 1
   dampingCoefficient: 5
   focusOnEnable: 0
@@ -663,7 +663,7 @@ Transform:
   m_GameObject: {fileID: 7598863694599915282}
   m_LocalRotation: {x: 0, y: 0.8417464, z: 0, w: -0.5398732}
   m_LocalPosition: {x: -0.117, y: 0.008, z: 0.764}
-  m_LocalScale: {x: 0.1, y: 0.1, z: 0.1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 7598863695914296493}
   - {fileID: 7598863694668525849}
@@ -707,6 +707,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7598863694599915274}
   - component: {fileID: 7598863694599915275}
+  - component: {fileID: 7598863694599915283}
   m_Layer: 0
   m_Name: Chuck400
   m_TagString: Untagged
@@ -714,6 +715,19 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!65 &7598863694599915283
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7598863694599915282}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Size: {x: 0.5, y: 2, z: 0.5}
+  m_Center: {x: 0, y: 1, z: 0}
 --- !u!4 &7598863694603007136
 Transform:
   m_ObjectHideFlags: 0

@@ -33,9 +33,14 @@ namespace MikanXRPlugin
 
 		public void Awake()
 		{
+			Log(MikanLogLevel.Info, "MikanXRPlugin - Awake Called");
+
 			// Initialize the settings
 			_settings = new MikanSettings();
 			_settings.LoadSettings();
+
+			// Don't destroy this object on scene changes
+			DontDestroyOnLoad(this);
 
 			// Setup MikanManager, Client and Logger
 			SetupMikan();
@@ -46,11 +51,16 @@ namespace MikanXRPlugin
 
 		public void OnDestroy()
 		{
+			Log(MikanLogLevel.Info, "MikanXRPlugin - OnDestroy Called");
+			Log(MikanLogLevel.Info, StackTraceUtility.ExtractStackTrace());
+
 			TearDownMikan();
 		}
 
 		public void OnApplicationQuit()
 		{
+			Log(MikanLogLevel.Info, "MikanXRPlugin - OnApplicationQuit Called");
+
 			TearDownMikan();
 
 			if (_settings != null)
@@ -61,6 +71,8 @@ namespace MikanXRPlugin
 
 		private void SetupMikan()
 		{
+			Log(MikanLogLevel.Info, "MikanXRPlugin - SetupMikan Called");
+
 			if (!_isMikanInitialized)
 			{
 				// Create the MikanManager
@@ -80,6 +92,8 @@ namespace MikanXRPlugin
 
 		private void TearDownMikan()
 		{
+			Log(MikanLogLevel.Info, "MikanXRPlugin - TearDownMikan Called");
+
 			if (_isMikanInitialized)
 			{
 				if (_mikanManager != null)

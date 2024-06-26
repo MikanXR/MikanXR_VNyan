@@ -3,6 +3,7 @@ Shader "Custom/RGBAPackDepth"
 	Properties
 	{
 		_MainTex ("Base (RGB)", 2D) = "white" {}
+		_SceneScale ("Scale applied to the mikan scene", Float) = 1.0
 	}
 	SubShader
 	{
@@ -17,6 +18,7 @@ Shader "Custom/RGBAPackDepth"
 			uniform sampler2D _MainTex;
 			uniform sampler2D _LastCameraDepthTexture;
 			uniform half4 _MainTex_TexelSize;
+			uniform float _SceneScale;
 
 			struct input
 			{
@@ -42,7 +44,7 @@ Shader "Custom/RGBAPackDepth"
 			
 			fixed4 frag(output o) : COLOR
 			{
-				float depth = tex2D(_LastCameraDepthTexture, o.uv).r;
+				float depth = tex2D(_LastCameraDepthTexture, o.uv).r / _SceneScale;
 				float depthNorm = min(Linear01Depth(depth), 0.999999);
 
 				return EncodeFloatRGBA(depthNorm);

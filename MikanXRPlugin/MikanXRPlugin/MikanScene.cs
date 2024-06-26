@@ -139,14 +139,18 @@ namespace MikanXRPlugin
 		{
 			settings.OnScenePositionChanged.AddListener(HandleScenePositionChanged);
 			settings.OnSceneOrientationChanged.AddListener(HandleSceneOrientationChanged);
-			settings.OnSceneScaleChanged.AddListener(HandkeSceneScaleChanged);
+			settings.OnSceneScaleChanged.AddListener(HandleSceneScaleChanged);
+
+			HandleScenePositionChanged(settings.ScenePosition);
+			HandleSceneOrientationChanged(settings.SceneEulerAngles);
+			HandleSceneScaleChanged(settings.SceneScale);
 		}
 
 		private void UnbindSettingsEvents(MikanSettings settings)
 		{
 			settings.OnScenePositionChanged.RemoveListener(HandleScenePositionChanged);
 			settings.OnSceneOrientationChanged.RemoveListener(HandleSceneOrientationChanged);
-			settings.OnSceneScaleChanged.RemoveListener(HandkeSceneScaleChanged);
+			settings.OnSceneScaleChanged.RemoveListener(HandleSceneScaleChanged);
 		}
 
 		void SetupSceneManipulatorCollision()
@@ -497,7 +501,7 @@ namespace MikanXRPlugin
 			this.transform.localRotation = Quaternion.Euler(newOrientation);
 		}
 
-		private void HandkeSceneScaleChanged(float newScale)
+		private void HandleSceneScaleChanged(float newScale)
 		{
 			this.transform.localScale = new Vector3(newScale, newScale, newScale);
 		}

@@ -73,7 +73,7 @@ namespace MikanXRPlugin
 		{
 			OwnerScene = ownerScene;
 			_client = ownerScene.OwnerManager.MikanClient;
-			_logger = ownerScene.OwnerManager.OwnerPlugin.Logger;
+			_logger = _client.ClientAPI.CoreAPI.Logger;
 
 			// Create a material used to pack the depth buffer into an RGBA texture
 			var _rgbDepthPackShader = ownerScene.OwnerManager.OwnerPlugin.rgbPackShader;
@@ -88,6 +88,9 @@ namespace MikanXRPlugin
 
 			// Setup the sibling Unity Camera component for XR rendering
 			SetupXRCamera();
+
+			// Bind settings events
+			BindSettingsEvents(ownerScene.OwnerManager.OwnerPlugin.Settings);
 
 			// If we are connected to Mikan, copy the camera intrinsics to the Unity Camera
 			// If not, wait for Mikan to connect and we'll copy the settings then
@@ -113,7 +116,26 @@ namespace MikanXRPlugin
 		private void TearDown()
 		{
 			_logger.Log(MikanLogLevel.Info, "MikanCamera OnDestroy called");
+			UnbindSettingsEvents(OwnerScene.OwnerManager.OwnerPlugin.Settings);
 			DisposeRenderTarget();
+		}
+
+		private void BindSettingsEvents(MikanSettings settings)
+		{
+			settings.OnSceneScaleChanged.AddListener(HandleSceneScaleChanged);
+
+			HandleSceneScaleChanged(settings.SceneScale);
+		}
+
+		private void UnbindSettingsEvents(MikanSettings settings)
+		{
+			settings.OnSceneScaleChanged.RemoveListener(HandleSceneScaleChanged);
+		}
+
+
+		private void HandleSceneScaleChanged(float newScale)
+		{
+			_depthPackMaterial.SetFloat("_SceneScale", newScale);
 		}
 
 		public void Start()
