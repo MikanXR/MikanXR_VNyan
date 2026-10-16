@@ -8,6 +8,7 @@ public class AvatarBoneFollower : MonoBehaviour
     public HumanBodyBones linkBone;
     public bool linkScale = false;
     public bool linkRotation = true;
+    public bool useLocalRotation = false;
     public bool linkPosition = true;
 
     // Start is called before the first frame update

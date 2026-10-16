@@ -25,6 +25,12 @@ public class WorldLightmapSettings : MonoBehaviour
     public Color ambientSkyColor;
     public SphericalHarmonicsL2 ambientProbe;
     public float ambientIntensity;
+    public bool fog = false;
+    public Color fogColor;
+    public float fogDensity;
+    public float fogStartDistance;
+    public float fogEndDistance;
+    public FogMode fogMode;
 
 
     void Start()

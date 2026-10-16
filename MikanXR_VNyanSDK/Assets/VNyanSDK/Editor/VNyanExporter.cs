@@ -9,9 +9,12 @@ using UnityEngine;
 
 public class VNyanExporter : MonoBehaviour
 {
-    [MenuItem("VNyan SDK/Export Throwable")]
+    [MenuItem("VNyan SDK/Export/Export Throwable")]
     public static void ExportThrowable()
     {
+        if (!CheckUnityVersion())
+            return;
+
         GameObject obj = Selection.activeGameObject;
 
         if(obj == null)
@@ -117,9 +120,12 @@ public class VNyanExporter : MonoBehaviour
     }
 
     
-    [MenuItem("VNyan SDK/Export Droppable")]
+    [MenuItem("VNyan SDK/Export/Export Droppable")]
     public static void ExportDroppable()
     {
+        if (!CheckUnityVersion())
+            return;
+
         GameObject obj = Selection.activeGameObject;
 
         if (obj == null)
@@ -226,9 +232,12 @@ public class VNyanExporter : MonoBehaviour
     }
 
     
-    [MenuItem("VNyan SDK/Export Edible")]
+    [MenuItem("VNyan SDK/Export/Export Edible")]
     public static void ExportEdible()
     {
+        if (!CheckUnityVersion())
+            return;
+
         GameObject obj = Selection.activeGameObject;
 
         if (obj == null)
@@ -331,9 +340,12 @@ public class VNyanExporter : MonoBehaviour
 
     }
     
-    [MenuItem("VNyan SDK/Export World")]
+    [MenuItem("VNyan SDK/Export/Export World")]
     public static void ExportWorld()
     {
+        if (!CheckUnityVersion())
+            return;
+
         GameObject obj = Selection.activeGameObject;
 
         if (obj == null)
@@ -383,6 +395,12 @@ public class VNyanExporter : MonoBehaviour
             ls.ambientProbe = RenderSettings.ambientProbe;
             ls.ambientSkybox = RenderSettings.skybox;
             ls.ambientIntensity = RenderSettings.ambientIntensity;
+            ls.fog = RenderSettings.fog;
+            ls.fogColor = RenderSettings.fogColor;
+            ls.fogDensity = RenderSettings.fogDensity;
+            ls.fogStartDistance = RenderSettings.fogStartDistance;
+            ls.fogEndDistance = RenderSettings.fogEndDistance;
+            ls.fogMode = RenderSettings.fogMode;
 
             if (LightmapSettings.lightmaps.Length > 0)
             {
@@ -482,9 +500,12 @@ public class VNyanExporter : MonoBehaviour
     }
 
 
-    [MenuItem("VNyan SDK/Export Prop")]
+    [MenuItem("VNyan SDK/Export/Export Prop")]
     public static void ExportProp()
     {
+        if (!CheckUnityVersion())
+            return;
+
         GameObject obj = Selection.activeGameObject;
 
         if (obj == null)
@@ -571,9 +592,12 @@ public class VNyanExporter : MonoBehaviour
 
     
 
-    [MenuItem("VNyan SDK/Export Custom Object")]
+    [MenuItem("VNyan SDK/Export/Export Custom Object")]
     public static void ExportCustom()
     {
+        if (!CheckUnityVersion())
+            return;
+
         GameObject obj = Selection.activeGameObject;
 
         if (obj == null)
@@ -664,9 +688,12 @@ public class VNyanExporter : MonoBehaviour
 
     }
 
-    [MenuItem("VNyan SDK/Export Injected Anim")]
+    [MenuItem("VNyan SDK/Export/Export Injected Anim")]
     public static void ExportAnimation()
     {
+        if (!CheckUnityVersion())
+            return;
+
         GameObject obj = Selection.activeGameObject;
 
         if (obj == null)
@@ -757,9 +784,12 @@ public class VNyanExporter : MonoBehaviour
 
     }
 
-    [MenuItem("VNyan SDK/Export Bone Rotations as JSON")]
+    [MenuItem("VNyan SDK/Export/Export Bone Rotations as JSON")]
     public static void ExportPose()
     {
+        if (!CheckUnityVersion())
+            return;
+
         GameObject obj = Selection.activeGameObject;
         Animator anim = null;
 
@@ -837,6 +867,50 @@ public class VNyanExporter : MonoBehaviour
             "\"posz\": " + d.Value.pos.z.ToString(CultureInfo.InvariantCulture) + " " +
             " }");
         return "{ \"data\": [" + string.Join(",", entries) + "] }";
+    }
+
+    private static bool CheckUnityVersion()
+    {
+        string version = Application.unityVersion;
+
+        if (!version.Contains("2020.3.48") &&
+            !version.Contains("2021.") &&
+            !version.Contains("2022.3."))
+        {
+            EditorUtility.DisplayDialog("Wrong Unity version", "VNyan SDK requires Unity 2022.3.62f2.\nYou're running " + version, "Ok");
+            return false;
+        }
+            
+
+        return true;
+    }
+
+    static void SetSkinnedMeshesReadable(GameObject obj)
+    {
+        var renderers = obj.GetComponentsInChildren<SkinnedMeshRenderer>(true);
+        List<string> processedPaths = new List<string>();
+
+        foreach (var renderer in renderers)
+        {
+            Mesh mesh = renderer.sharedMesh;
+            if (mesh == null) continue;
+
+            string path = AssetDatabase.GetAssetPath(mesh);
+            if (string.IsNullOrEmpty(path)) continue;
+
+            if (processedPaths.Contains(path)) continue;
+
+            processedPaths.Add(path);
+
+            ModelImporter importer = AssetImporter.GetAtPath(path) as ModelImporter;
+            if (importer == null) continue;
+
+            if (!importer.isReadable)
+            {
+                importer.isReadable = true;
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            }
+        }
     }
 }
 

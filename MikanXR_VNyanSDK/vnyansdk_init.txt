@@ -1,0 +1,1 @@
+This file is used to track whether the VNyan SDK installer has been shown before. You can delete this file to show the installer again.
