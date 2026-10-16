@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The VNyan plugin: the MikanXR Unity package's runtime compiled against VNyan's own copies of
+    Unity, VNyanInterface, KlakSpout and Newtonsoft.Json, plus the VNyan-specific sources under
+    Source/. Nothing native: the client talks to the editor over a managed websocket and writes
+    its Spout senders through the KlakSpout VNyan already loads. The target is netstandard2.1,
+    which is what VNyan's Unity assemblies are built against.
+
+    VNyanDir is the VNyan install (D:\tools\vnyan by default, or set the VNYAN_DIR environment
+    variable). MikanUnityPackageDir is the package folder of a MikanXR_Unity checkout beside this
+    repo. Both can be overridden on the command line: dotnet build -p:VNyanDir=C:\VNyan
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <AssemblyName>MikanXR_VNyan</AssemblyName>
+    <RootNamespace>MikanXR.VNyan</RootNamespace>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>0.2.0</Version>
+    <VNyanDir Condition="'$(VNyanDir)' == '' and '$(VNYAN_DIR)' != ''">$(VNYAN_DIR)</VNyanDir>
+    <VNyanDir Condition="'$(VNyanDir)' == ''">D:\tools\vnyan</VNyanDir>
+    <VNyanManagedDir>$(VNyanDir)\VNyan_Data\Managed</VNyanManagedDir>
+    <MikanUnityPackageDir Condition="'$(MikanUnityPackageDir)' == ''">$(MSBuildThisFileDirectory)..\MikanXR_Unity\Packages\com.mikanxr.unity</MikanUnityPackageDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The shared runtime, compiled from the package by link so there is one copy of it -->
+    <Compile Include="$(MikanUnityPackageDir)\Runtime\**\*.cs" Link="Package\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="Source\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="UnityEngine">
+      <HintPath>$(VNyanManagedDir)\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(VNyanManagedDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.AssetBundleModule">
+      <HintPath>$(VNyanManagedDir)\UnityEngine.AssetBundleModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.JSONSerializeModule">
+      <HintPath>$(VNyanManagedDir)\UnityEngine.JSONSerializeModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="VNyanInterface">
+      <HintPath>$(VNyanManagedDir)\VNyanInterface.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Klak.Spout.Runtime">
+      <HintPath>$(VNyanManagedDir)\Klak.Spout.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(VNyanManagedDir)\Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
