@@ -11,7 +11,7 @@ namespace MikanXR.VNyan
 	public class MikanVNyanWindow : IButtonClickedHandler
 	{
 		private const int k_width = 340;
-		private const int k_height = 836;
+		private const int k_height = 866;
 		private const int k_margin = 16;
 		private const int k_rowHeight = 30;
 		private const int k_labelWidth = 110;
@@ -120,6 +120,14 @@ namespace MikanXR.VNyan
 			frustums.onToggleValueChanged += () =>
 			{
 				Client.SetShowCameraFrustums(frustums.getIsOn());
+				Client.SaveSettings();
+			};
+			y -= k_rowHeight;
+
+			IVNyanUIToggle stencilPreview = UI.createToggle(_panel, "Show stencils in the VNyan view", k_margin, y, k_width - 2 * k_margin, k_rowHeight, Client.ShowStencils);
+			stencilPreview.onToggleValueChanged += () =>
+			{
+				Client.SetShowStencils(stencilPreview.getIsOn());
 				Client.SaveSettings();
 			};
 			y -= k_rowHeight;
