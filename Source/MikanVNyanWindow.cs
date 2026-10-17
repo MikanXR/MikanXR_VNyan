@@ -11,9 +11,9 @@ namespace MikanXR.VNyan
 	public class MikanVNyanWindow : IButtonClickedHandler
 	{
 		private const int k_width = 340;
-		private const int k_height = 790;
+		private const int k_height = 836;
 		private const int k_margin = 16;
-		private const int k_rowHeight = 28;
+		private const int k_rowHeight = 30;
 		private const int k_labelWidth = 110;
 		private const int k_fieldWidth = 60;
 
