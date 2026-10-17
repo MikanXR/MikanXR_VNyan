@@ -11,7 +11,7 @@ namespace MikanXR.VNyan
 	public class MikanVNyanWindow : IButtonClickedHandler
 	{
 		private const int k_width = 340;
-		private const int k_height = 700;
+		private const int k_height = 730;
 		private const int k_margin = 16;
 		private const int k_rowHeight = 28;
 		private const int k_labelWidth = 110;
@@ -104,6 +104,17 @@ namespace MikanXR.VNyan
 			frustums.onToggleValueChanged += () =>
 			{
 				Client.SetShowCameraFrustums(frustums.getIsOn());
+				Client.SaveSettings();
+			};
+			y -= k_rowHeight;
+
+			UI.createLabel(_panel, "World scale", k_margin, y, k_labelWidth, k_rowHeight);
+			IVNyanUIInputField worldScale = UI.createInputField(_panel, k_margin + k_labelWidth, y, k_fieldWidth, k_rowHeight, Format(Client.WorldScale), "10");
+			UI.createLabel(_panel, "units per meter", k_margin + k_labelWidth + k_fieldWidth + 8, y, 120, k_rowHeight);
+			worldScale.onInputFieldEndEdit += () =>
+			{
+				Client.SetWorldScale(Parse(worldScale.getText(), Client.WorldScale));
+				worldScale.setText(Format(Client.WorldScale));
 				Client.SaveSettings();
 			};
 			y -= k_rowHeight;

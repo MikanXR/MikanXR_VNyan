@@ -10,6 +10,9 @@ namespace MikanXR.VNyan
 	public class MikanVNyanPlugin
 	{
 		public const string ClientName = "VNyan";
+		// VNyan avatars are human sized and the editor's scenes are tabletop sized, so ten Unity
+		// units per Mikan meter is the starting point; the window adjusts it and the setting persists
+		public const float DefaultWorldScale = 10f;
 		public const string DataFolderName = "MikanXR";
 		public const string ShaderBundleName = "mikanxr_shaders.bundle";
 
@@ -61,6 +64,7 @@ namespace MikanXR.VNyan
 			_client = _root.AddComponent<MikanClient>();
 			_client.SettingsProvider = new MikanVNyanSettingsProvider();
 			_client.SetClientName(ClientName);
+			_client.SetWorldScale(DefaultWorldScale);
 
 			_root.SetActive(true);
 
