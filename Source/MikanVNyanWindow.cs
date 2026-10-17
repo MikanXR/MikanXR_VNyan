@@ -11,7 +11,7 @@ namespace MikanXR.VNyan
 	public class MikanVNyanWindow : IButtonClickedHandler
 	{
 		private const int k_width = 340;
-		private const int k_height = 730;
+		private const int k_height = 790;
 		private const int k_margin = 16;
 		private const int k_rowHeight = 28;
 		private const int k_labelWidth = 110;
@@ -92,10 +92,26 @@ namespace MikanXR.VNyan
 			};
 			y -= k_rowHeight + 6;
 
-			IVNyanUIToggle stencils = UI.createToggle(_panel, "Render stencils (knockout and shadows)", k_margin, y, k_width - 2 * k_margin, k_rowHeight, Client.RenderStencils);
+			IVNyanUIToggle stencils = UI.createToggle(_panel, "Render stencils (knockout)", k_margin, y, k_width - 2 * k_margin, k_rowHeight, Client.RenderStencils);
 			stencils.onToggleValueChanged += () =>
 			{
 				Client.SetRenderStencils(stencils.getIsOn());
+				Client.SaveSettings();
+			};
+			y -= k_rowHeight;
+
+			IVNyanUIToggle shadows = UI.createToggle(_panel, "Render shadows onto stencils", k_margin, y, k_width - 2 * k_margin, k_rowHeight, Client.RenderShadows);
+			shadows.onToggleValueChanged += () =>
+			{
+				Client.SetRenderShadows(shadows.getIsOn());
+				Client.SaveSettings();
+			};
+			y -= k_rowHeight;
+
+			IVNyanUIToggle depth = UI.createToggle(_panel, "Publish depth buffer", k_margin, y, k_width - 2 * k_margin, k_rowHeight, Client.RenderDepth);
+			depth.onToggleValueChanged += () =>
+			{
+				Client.SetRenderDepth(depth.getIsOn());
 				Client.SaveSettings();
 			};
 			y -= k_rowHeight;
