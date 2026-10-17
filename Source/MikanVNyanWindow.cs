@@ -11,7 +11,7 @@ namespace MikanXR.VNyan
 	public class MikanVNyanWindow : IButtonClickedHandler
 	{
 		private const int k_width = 340;
-		private const int k_height = 866;
+		private const int k_height = 986;
 		private const int k_margin = 16;
 		private const int k_rowHeight = 30;
 		private const int k_labelWidth = 110;
@@ -139,6 +139,41 @@ namespace MikanXR.VNyan
 			{
 				Client.SetWorldScale(Parse(worldScale.getText(), Client.WorldScale));
 				worldScale.setText(Format(Client.WorldScale));
+				Client.SaveSettings();
+			};
+			y -= k_rowHeight;
+
+			IVNyanUIToggle lightCones = UI.createToggle(_panel, "Show light cones in the VNyan view", k_margin, y, k_width - 2 * k_margin, k_rowHeight, Client.ShowLightCones);
+			lightCones.onToggleValueChanged += () =>
+			{
+				Client.SetShowLightCones(lightCones.getIsOn());
+				Client.SaveSettings();
+			};
+			y -= k_rowHeight;
+
+			IVNyanUIToggle environment = UI.createToggle(_panel, "Apply Mikan light environment", k_margin, y, k_width - 2 * k_margin, k_rowHeight, Client.ApplyLightEnvironment);
+			environment.onToggleValueChanged += () =>
+			{
+				Client.SetApplyLightEnvironment(environment.getIsOn());
+				Client.SaveSettings();
+			};
+			y -= k_rowHeight;
+
+			IVNyanUIToggle spotLights = UI.createToggle(_panel, "Apply Mikan DMX spot lights", k_margin, y, k_width - 2 * k_margin, k_rowHeight, Client.ApplySpotLights);
+			spotLights.onToggleValueChanged += () =>
+			{
+				Client.SetApplySpotLights(spotLights.getIsOn());
+				Client.SaveSettings();
+			};
+			y -= k_rowHeight;
+
+			UI.createLabel(_panel, "Light intensity", k_margin, y, k_labelWidth, k_rowHeight);
+			IVNyanUIInputField lightScale = UI.createInputField(_panel, k_margin + k_labelWidth, y, k_fieldWidth, k_rowHeight, Format(Client.LightIntensityScale), "1");
+			UI.createLabel(_panel, "scale", k_margin + k_labelWidth + k_fieldWidth + 8, y, 120, k_rowHeight);
+			lightScale.onInputFieldEndEdit += () =>
+			{
+				Client.SetLightIntensityScale(Parse(lightScale.getText(), Client.LightIntensityScale));
+				lightScale.setText(Format(Client.LightIntensityScale));
 				Client.SaveSettings();
 			};
 			y -= k_rowHeight;
