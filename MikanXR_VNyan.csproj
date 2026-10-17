@@ -50,6 +50,15 @@
       <HintPath>$(VNyanManagedDir)\UnityEngine.JSONSerializeModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- Model stencil geometry is fetched over HTTP and its texture decoded from the GLB -->
+    <Reference Include="UnityEngine.UnityWebRequestModule">
+      <HintPath>$(VNyanManagedDir)\UnityEngine.UnityWebRequestModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(VNyanManagedDir)\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>$(VNyanManagedDir)\UnityEngine.UI.dll</HintPath>
       <Private>false</Private>
