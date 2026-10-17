@@ -7,7 +7,7 @@ The plugin is one managed assembly plus a shader bundle. It compiles the [MikanX
 ## Layout
 
 - `MikanXR_VNyan.csproj`: the plugin assembly. It compiles `Runtime/**/*.cs` of the Unity package by link plus `Source/`.
-- `Source/`: the VNyan side. The plugin manifest VNyan starts, the settings store over VNyan's own, and the plugin window.
+- `Source/`: the VNyan side. The plugin manifest VNyan starts, the settings store over VNyan's own, the plugin window, and the free camera with its settings window.
 - `MikanXR_VNyanSDK/`: a Unity 2022.3.62f3 project with the VNyan SDK and the package, for VNyan-side Unity work such as custom objects.
 - `install.bat`: copies the assembly and the shader bundle into a VNyan install.
 
@@ -38,6 +38,26 @@ puts `MikanXR_VNyan.dll` in `Items\Assemblies` and `mikanxr_shaders.bundle` in `
 ## Using
 
 The window shows the connection, the editor host and port, the world scale (Unity units per Mikan meter, 10 by default since VNyan avatars are human sized and the editor's scenes are tabletop sized), and the render settings: whether stencils render as knockouts, whether shadows are caught on them, whether the depth buffer is published (off by default, since the knockout already handles occlusion), whether camera frustums are drawn, whether the stencils show in VNyan's own view as translucent previews and the spot light cones as outlines, whether the editor's light environment and DMX spot lights light the VNyan scene and at what intensity scale, and the shadow strength. Below them, the Mikan root's placement in the VNyan scene and, per stage, the stage's placement. Editing a stage's fields pins it: the editor's own transform for that stage is ignored until "Follow editor". Everything persists in `MikanXRPlugin.cfg` under VNyan's profile.
+
+### Free camera
+
+The "Free camera (hold RMB)" toggle in the window replaces VNyan's orbit camera with a fly camera. While the right mouse button is held:
+
+- moving the mouse turns the view
+- WASD moves in the view plane
+- Q and E move down and up
+- Shift moves faster
+- the scroll wheel changes the move speed
+
+A right button press over VNyan's UI is left to the UI. "Camera settings" opens the speed, look sensitivity and acceleration settings, an invert Y toggle, a reset button, and the gamepad toggle. Gamepad controls are off by default because VNyan's gamepad nodes can read the same pad for the avatar. With them on:
+
+- the left stick moves
+- the right stick looks
+- the triggers move down and up
+- the shoulder buttons step the speed
+- clicking the right stick resets the view
+
+VNyan's camera presets still place the camera, and the free camera continues from where they put it. Node graphs can call the `MikanFreeCameraOn`, `MikanFreeCameraOff` and `MikanFreeCameraToggle` triggers, for example from a hotkey. The free camera settings persist in `MikanXRFreeCamera.cfg`.
 
 In the editor, the compositor that should carry VNyan's avatar uses `unity_client_shadow_graph.compgraph` with a client texture source named `VNyan`, the plugin's client id. The Mikan cameras render every layer but VNyan's UI, and the plugin's own helpers hide themselves from them, so the avatar and VNyan's world both appear.
 

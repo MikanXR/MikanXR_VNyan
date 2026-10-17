@@ -11,7 +11,7 @@ namespace MikanXR.VNyan
 	public class MikanVNyanWindow : IButtonClickedHandler
 	{
 		private const int k_width = 340;
-		private const int k_height = 986;
+		private const int k_height = 1016;
 		private const int k_margin = 16;
 		private const int k_rowHeight = 30;
 		private const int k_labelWidth = 110;
@@ -34,6 +34,8 @@ namespace MikanXR.VNyan
 		private readonly IVNyanUIInputField[] _stagePosition = new IVNyanUIInputField[3];
 		private readonly IVNyanUIInputField[] _stageRotation = new IVNyanUIInputField[3];
 		private IVNyanUIInputField _stageScale;
+
+		private MikanVNyanFreeCameraWindow _freeCameraWindow;
 
 		private MikanClient Client => _plugin.Client;
 		private static IUIInterface UI => VNyanInterface.VNyanInterface.VNyanUI;
@@ -130,6 +132,16 @@ namespace MikanXR.VNyan
 				Client.SetShowStencils(stencilPreview.getIsOn());
 				Client.SaveSettings();
 			};
+			y -= k_rowHeight;
+
+			MikanVNyanFreeCamera freeCamera = _plugin.FreeCamera;
+			_freeCameraWindow = new MikanVNyanFreeCameraWindow(freeCamera);
+			IVNyanUIToggle freeCameraToggle = UI.createToggle(_panel, "Free camera (hold RMB)", k_margin, y, 180, k_rowHeight, freeCamera.IsEnabled);
+			freeCameraToggle.onToggleValueChanged += () => freeCamera.SetEnabled(freeCameraToggle.getIsOn());
+			// Triggers from node graphs change the state without the toggle
+			freeCamera.EnabledChanged += () => freeCameraToggle.setIsOn(freeCamera.IsEnabled);
+			IVNyanUIButton freeCameraSettings = UI.createButton(_panel, "Camera settings", k_margin + 186, y, 122, k_rowHeight);
+			freeCameraSettings.onButtonClicked += _freeCameraWindow.Show;
 			y -= k_rowHeight;
 
 			UI.createLabel(_panel, "World scale", k_margin, y, k_labelWidth, k_rowHeight);

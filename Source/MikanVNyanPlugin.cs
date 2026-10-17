@@ -20,11 +20,13 @@ namespace MikanXR.VNyan
 
 		private GameObject _root;
 		private MikanClient _client;
+		private MikanVNyanFreeCamera _freeCamera;
 		private MikanVNyanWindow _window;
 
 		public static MikanVNyanPlugin Instance => s_instance;
 		public MikanClient Client => _client;
 		public GameObject Root => _root;
+		public MikanVNyanFreeCamera FreeCamera => _freeCamera;
 
 		public static void Start()
 		{
@@ -68,6 +70,7 @@ namespace MikanXR.VNyan
 
 			_root.SetActive(true);
 
+			_freeCamera = _root.AddComponent<MikanVNyanFreeCamera>();
 			_window = new MikanVNyanWindow(this);
 			_root.AddComponent<MikanVNyanTicker>().Window = _window;
 
