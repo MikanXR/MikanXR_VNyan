@@ -59,6 +59,12 @@ A right button press over VNyan's UI is left to the UI. "Camera settings" opens 
 
 VNyan's camera presets still place the camera, and the free camera continues from where they put it. Node graphs can call the `MikanFreeCameraOn`, `MikanFreeCameraOff` and `MikanFreeCameraToggle` triggers, for example from a hotkey. The free camera settings persist in `MikanXRFreeCamera.cfg`.
 
+### Scene triggers
+
+When the editor's current scene changes (and once when the plugin connects and learns it), the plugin fires two node graph triggers: `MikanSceneChanged`, with the scene id in value1 and the scene name in text1, and `MikanScene_<scene name>` (`MikanScene_SCN_Desk` for a scene named `SCN_Desk`), so each scene can have a trigger node of its own. The `MikanSceneId` and `MikanSceneName` parameters hold the current scene for a graph that reads it outside the event.
+
+To move the avatar per scene, save a position slot for each scene in VNyan's Position Settings, then wire that scene's `MikanScene_<name>` trigger node to an Avatar Position node loading the slot. The plugin does not move the avatar itself: VNyan owns the avatar transform and resets a write to it on the next frame, so its own position slots are the way to place it.
+
 In the editor, the compositor that should carry VNyan's avatar uses `unity_client_shadow_graph.compgraph` with a client texture source named `VNyan`, the plugin's client id. The Mikan cameras render every layer but VNyan's UI, and the plugin's own helpers hide themselves from them, so the avatar and VNyan's world both appear.
 
 ## Status
