@@ -1,3 +1,4 @@
+using System.Reflection;
 using VNyanInterface;
 
 namespace MikanXR.VNyan
@@ -7,7 +8,9 @@ namespace MikanXR.VNyan
 	public class MikanVNyanPluginManifest : IVNyanPluginManifest
 	{
 		public string PluginName { get; } = "MikanXR_VNyan";
-		public string Version { get; } = "0.2.0";
+		// The <Version> of MikanXR_VNyan.csproj, which the build writes into the assembly
+		public string Version { get; } = typeof(MikanVNyanPluginManifest).Assembly
+			.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "unknown";
 		public string Title { get; } = "MikanXR";
 		public string Author { get; } = "MikanXR";
 		public string Website { get; } = "https://github.com/MikanXR/MikanXR_VNyan";

@@ -73,3 +73,4 @@ crashlytics-build.properties
 
 # The plugin project is hand-written, not Unity-generated
 !/MikanXR_VNyan.csproj
+/dist/

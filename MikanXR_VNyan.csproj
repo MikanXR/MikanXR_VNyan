@@ -20,7 +20,11 @@
     <Nullable>disable</Nullable>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <!-- The one place the version is written: the plugin manifest reads it back from the
+         assembly, and tools/package.py names the release zip and fills plugin.json from it.
+         The commit hash is kept out of it so VNyan shows the plain version. -->
     <Version>0.2.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <VNyanDir Condition="'$(VNyanDir)' == '' and '$(VNYAN_DIR)' != ''">$(VNYAN_DIR)</VNyanDir>
     <VNyanDir Condition="'$(VNyanDir)' == ''">D:\tools\vnyan</VNyanDir>
     <VNyanManagedDir>$(VNyanDir)\VNyan_Data\Managed</VNyanManagedDir>

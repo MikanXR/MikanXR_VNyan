@@ -10,6 +10,7 @@ The plugin is one managed assembly plus a shader bundle. It compiles the [MikanX
 - `Source/`: the VNyan side. The plugin manifest VNyan starts, the settings store over VNyan's own, the plugin window, and the free camera with its settings window.
 - `MikanXR_VNyanSDK/`: a Unity 2022.3.62f3 project with the VNyan SDK and the package, for VNyan-side Unity work such as custom objects.
 - `install.bat`: copies the assembly and the shader bundle into a VNyan install.
+- `tools/package.py`: writes the release zip from the built assembly and shader bundle, or checks one.
 
 ## Building
 
@@ -34,6 +35,25 @@ install.bat D:\tools\vnyan
 ```
 
 puts `MikanXR_VNyan.dll` in `Items\Assemblies` and `mikanxr_shaders.bundle` in `Items\Assemblies\MikanXR`. Turn on "Allow 3rd party Mods/Plugins" in VNyan's Misc settings and restart VNyan. A MikanXR button appears in the Plugins window.
+
+## Releasing
+
+A release is one zip, `MikanXR_VNyan_<version>.zip`, attached to a GitHub release tagged `v<version>`. It holds `plugin.json`, `MikanXR_VNyan.dll` and `mikanxr_shaders.bundle` at its root, which is the layout [MikanLauncher](https://github.com/MikanXR/MikanLauncher) installs the plugin from. The version is written once, in `<Version>` of `MikanXR_VNyan.csproj`: the build stamps it into the assembly, the plugin manifest VNyan reads reports it from there, and the packaging script names the zip and fills `plugin.json` from it.
+
+The zip is built locally. The assembly compiles against the Unity and VNyanInterface assemblies of a VNyan install, which are not in this repository, and the bundle needs the Unity editor, so a hosted runner can build neither.
+
+1. Set `<Version>` in `MikanXR_VNyan.csproj` and commit.
+2. Build the assembly and the shader bundle as under Building, from the `MikanXR_Unity` commit the release should carry.
+3. Run `python tools/package.py`. It writes `dist/MikanXR_VNyan_<version>.zip`, checks it, and prints the SHA-256 of each file.
+4. Tag the commit `v<version>`, push the tag, and draft the release:
+
+   ```bat
+   gh release create v0.2.0 dist\MikanXR_VNyan_0.2.0.zip --draft --verify-tag --generate-notes
+   ```
+
+5. Check the draft with `gh workflow run release.yml -f tag=v0.2.0`, then publish it with `gh release edit v0.2.0 --draft=false`.
+
+The Release check workflow downloads the zip from the release and runs `tools/package.py --verify` on it: the file list, `plugin.json`, and a version that matches the tag, the zip's name and the assembly. It runs again when the release is published.
 
 ## Using
 
