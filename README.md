@@ -85,7 +85,7 @@ When the editor's current scene changes (and once when the plugin connects and l
 
 To move the avatar per scene, save a position slot for each scene in VNyan's Position Settings, then wire that scene's `MikanScene_<name>` trigger node to an Avatar Position node loading the slot. The plugin does not move the avatar itself: VNyan owns the avatar transform and resets a write to it on the next frame, so its own position slots are the way to place it.
 
-In the editor, the compositor that should carry VNyan's avatar uses `unity_client_shadow_graph.compgraph` with a client texture source named `VNyan`, the plugin's client id. The Mikan cameras render every layer but VNyan's UI, and the plugin's own helpers hide themselves from them, so the avatar and VNyan's world both appear.
+In the editor, each scene owns one compositor. The compositor of a scene that should carry VNyan's avatar uses `unity_client_shadow_graph.compgraph` with a client texture source named `VNyan`, the plugin's client id. The Mikan cameras render every layer but VNyan's UI, and the plugin's own helpers hide themselves from them, so the avatar and VNyan's world both appear.
 
 ## Status
 
